@@ -1,7 +1,7 @@
 [package]
 name = "rust-script-ext"
 version = "0.1.0"
-authors = "Kurt Lawrence <kurtlawrence.info>"
+authors = [ "Kurt Lawrence <kurtlawrence.info>" ]
 edition = "2021"
 description = "Opinionated set of extensions for use with rust-script"
 repository = "https://github.com/kurtlawrence/rust-script-ext"
