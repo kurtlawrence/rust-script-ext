@@ -37,7 +37,7 @@ jobs:
           profile: minimal
           toolchain: stable
       - name: Document
-        run: cargo doc --no-deps      
+        run: cargo doc
       - name: Make index file
         run: echo "<meta http-equiv=\"refresh\" content=\"0; url=rust_script_ext\">" > target/doc/index.html
       - name: Set doc perms
