@@ -5,3 +5,8 @@
 //! This crate provides an opinionated set of extensions tailored towards common patterns in scripts.
 //! These patterns include file reading, argument parsing, error handling.
 
+
+/// Typical imports.
+pub mod prelude {
+    pub use ::fastrand;
+}

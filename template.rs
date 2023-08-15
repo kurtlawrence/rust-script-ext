@@ -8,6 +8,7 @@
 use rust_script_ext::prelude::*;
 
 fn main() {
+    // fastrand comes from rust_script_ext::prelude::*
     let n = std::iter::repeat_with(|| fastrand::u32(1..=100))
         .take(5)
         .collect::<Vec<_>>();

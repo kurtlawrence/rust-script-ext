@@ -13,3 +13,4 @@ license-file = "LICENSE"
 features = []
 
 [dependencies]
+fastrand = "2"
