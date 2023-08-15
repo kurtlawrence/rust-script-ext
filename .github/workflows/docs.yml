@@ -39,7 +39,7 @@ jobs:
       - name: Document
         run: cargo doc --no-deps      
       - name: Make index file
-        run: echo "<meta http-equiv=\"refresh\" content=\"0; url=geom\">" > target/doc/index.html
+        run: echo "<meta http-equiv=\"refresh\" content=\"0; url=rust_script_ext\">" > target/doc/index.html
       - name: Set doc perms
         run: chmod -c -R +rX target/doc
       - name: Setup Pages
