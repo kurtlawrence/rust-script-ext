@@ -1,8 +1,9 @@
 #!/usr/bin/env rust-script
 //! Don't forget chmod +x your script!
 //! ```cargo
-//! [dependencies]
-//! rust-script-ext = { git = "https://github.com/kurtlawrence/rust-script-ext" }
+//! [dependencies.rust-script-ext]
+//! git = "https://github.com/kurtlawrence/rust-script-ext"
+//! rev = "9bd1235"
 //! ```
 
 use rust_script_ext::prelude::*;
