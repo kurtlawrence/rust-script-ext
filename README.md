@@ -5,6 +5,8 @@ Opinionated set of extensions for use with
 Using `rust-script` to run Rust like a shell script is great!
 This crate provides an opinionated set of extensions tailored towards common patterns in scripts.
 These patterns include file reading, argument parsing, error handling.
+The goal is for script writers to focus on the _business logic_, not implementing parsers, handling
+errors, parsing arguments, etc.
 
 ````sh
 $ cargo install rust-script
