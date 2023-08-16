@@ -180,23 +180,23 @@ impl Args {
             return Ok(());
         }
 
-        let (offset, src) = self.seen.iter().enumerate()
-            .fold((0, String::new()), |(o, s), (i, a)| {
-                let o = if i == idx {
-                    s.len()
-                } else {
-                    o
-                };
+        let (offset, src) =
+            self.seen
+                .iter()
+                .enumerate()
+                .fold((0, String::new()), |(o, s), (i, a)| {
+                    let o = if i == idx { s.len() } else { o };
 
-                (o, s + a + " ")
-            });
+                    (o, s + a + " ")
+                });
 
         Err(Error::new(diagnostic! {
             severity = Severity::Error,
             code = "Unconsumed arguments",
             labels = vec![LabeledSpan::underline(offset..src.len())],
             "unconsumed arguments provided"
-        }).with_source_code(src))
+        })
+        .with_source_code(src))
     }
 
     /// Parse the current argument _without advancing the argument position._
@@ -400,9 +400,7 @@ mod tests {
         let mut args = Args::from(vec!["fst.txt", "24h"]);
 
         let _ = args.req::<String>("filepath").unwrap();
-        assert_snapshot!(
-            pretty_print_err(args.finish().unwrap_err())
-        );
+        assert_snapshot!(pretty_print_err(args.finish().unwrap_err()));
     }
 
     #[test]
