@@ -17,7 +17,7 @@ $ cat ./template.rs
 //! ```cargo
 //! [dependencies.rust-script-ext]
 //! git = "https://github.com/kurtlawrence/rust-script-ext"
-//! rev = "9bd1235"
+//! rev = "145ecc5015628f298be5eec5e86661c618326422"
 //! ```
 
 use rust_script_ext::prelude::*;
