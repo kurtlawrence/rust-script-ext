@@ -55,8 +55,42 @@ impl File {
         Ok(Self { path, inner })
     }
 
+    /// Unwrap into `std::fs::File`, flushing any data to be written.
     pub fn into_std_file(self) -> Result<std::fs::File> {
         self.inner.into_inner().into_diagnostic()
+    }
+
+    /// Read entire file contents to byte buffer.
+    ///
+    /// Note that reading starts from where the cursor is.
+    /// Previous reads may have advanced the cursor.
+    pub fn read_to_vec(&mut self) -> Result<Vec<u8>> {
+        let len = self
+            .inner
+            .get_ref()
+            .metadata()
+            .map(|x| x.len())
+            .unwrap_or_default() as usize;
+        let mut buf = Vec::with_capacity(len);
+        self.read_to_end(&mut buf)
+            .into_diagnostic()
+            .wrap_err_with(|| format!("failed reading bytes from '{}'", self.path.display()))?;
+        Ok(buf)
+    }
+
+    /// Read entire file contents as a UTF8 encoded string.
+    ///
+    /// Note that reading starts from where the cursor is.
+    /// Previous reads may have advanced the cursor.
+    pub fn read_to_string(&mut self) -> Result<String> {
+        self.read_to_vec().and_then(|x| {
+            String::from_utf8(x).into_diagnostic().wrap_err_with(|| {
+                format!(
+                    "failed to encode bytes from '{}' as UTF8",
+                    self.path.display()
+                )
+            })
+        })
     }
 
     fn wrap_err(&self, err: io::Error) -> io::Error {
@@ -138,7 +172,9 @@ impl Write for File {
     }
 
     fn write_vectored(&mut self, bufs: &[io::IoSlice<'_>]) -> io::Result<usize> {
-        self.inner.write_vectored(bufs).map_err(|e| self.wrap_err(e))
+        self.inner
+            .write_vectored(bufs)
+            .map_err(|e| self.wrap_err(e))
     }
 
     fn flush(&mut self) -> io::Result<()> {

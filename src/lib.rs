@@ -5,6 +5,12 @@
 //! This crate provides an opinionated set of extensions tailored towards common patterns in scripts.
 //! These patterns include file reading, argument parsing, error handling.
 //!
+//! # Argument Parsing
+//! A rudimentary argument parser is provided, simply call [`args`](args::args).
+//!
+//! The parsing is meant to be simple, tailored to script usage. For fully featured CLI apps,
+//! consider importing [`clap`](https://docs.rs/clap/latest/clap/index.html).
+//!
 //! # Error Handling
 //! Error handling uses the [`miette`] crate.
 //! A `Result` type alias is exposed, and [`IntoDiagnostic`](prelude::IntoDiagnostic) can be used
@@ -40,7 +46,9 @@
 //! Date and time is handled by exposing the [`time`](::time) crate.
 //! For _duration_, [`humantime`](::humantime) is used, exposing its `Duration` directly. This is
 //! done for duration parsing similar to what is experienced in unix tools.
+#![warn(missing_docs)]
 
+mod args;
 mod file;
 
 /// Exposed dependency crates.
@@ -58,6 +66,8 @@ pub mod deps {
 pub mod prelude {
     pub use super::deps;
 
+    pub use super::args::{args, Args};
+
     /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::file::File).
     pub type CsvReader = ::csv::Reader<super::file::File>;
 
@@ -66,9 +76,9 @@ pub mod prelude {
 
     pub use super::file::File;
     pub use ::fastrand;
-    pub use ::humantime::{Duration, Timestamp, parse_duration};
+    pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
     pub use ::regex::Regex;
-    pub use ::serde::{Serialize, Deserialize, de::DeserializeOwned};
-    pub use ::time::{Month, Weekday, UtcOffset, Time, Date, OffsetDateTime, PrimitiveDateTime};
+    pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
+    pub use ::time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
 }

@@ -1,0 +1,13 @@
+---
+source: src/args.rs
+assertion_line: 246
+expression: "pretty_print_err(args.req::<String>(\"output\").unwrap_err())"
+---
+Error with argument <output>
+
+  × expecting an argument at position 3
+   ╭────
+ 1 │ fst.txt 24h 
+   ·            ▲
+   ╰────
+

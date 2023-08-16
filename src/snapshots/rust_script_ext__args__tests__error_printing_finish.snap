@@ -1,0 +1,13 @@
+---
+source: src/args.rs
+assertion_line: 342
+expression: pretty_print_err(args.finish().unwrap_err())
+---
+Unconsumed arguments
+
+  × unconsumed arguments provided
+   ╭────
+ 1 │ fst.txt 24h 
+   ·         ────
+   ╰────
+
