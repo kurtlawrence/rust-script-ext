@@ -3,7 +3,7 @@
 //! ```cargo
 //! [dependencies.rust-script-ext]
 //! git = "https://github.com/kurtlawrence/rust-script-ext"
-//! rev = "9bd1235"
+//! rev = "eebd6056481617baba58840bfeb03c23b68b70f7"
 //! ```
 
 use rust_script_ext::prelude::*;
