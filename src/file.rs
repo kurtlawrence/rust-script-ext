@@ -95,7 +95,7 @@ impl File {
 
     /// Conveniance function to write bytes to the file.
     pub fn write(&mut self, contents: impl AsRef<[u8]>) -> Result<()> {
-        self.write_all(contents)
+        self.write_all(contents.as_ref())
             .into_diagnostic()
             .wrap_err_with(|| format!("failed to write to '{}'", self.path.display()))
     }
