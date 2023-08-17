@@ -65,11 +65,11 @@ impl Args {
         Result<T, T::Err>: IntoDiagnostic<T, T::Err>,
     {
         let desc = desc.as_ref();
-        self.opt(desc).unwrap_or_else(|| {
-            Err(self.make_err(
+        self.opt(desc)?.ok_or_else(|| {
+            self.make_err(
                 desc,
                 format!("expecting an argument at position {}", self.idx + 1),
-            ))
+            )
         })
     }
 
@@ -85,28 +85,28 @@ impl Args {
     /// # use std::path::PathBuf;
     /// let mut args = Args::from(vec!["fst.txt"]);
     ///
-    /// let fst = args.opt::<String>("filepath").transpose().unwrap();
+    /// let fst = args.opt::<String>("filepath").unwrap();
     /// assert_eq!(fst, Some("fst.txt".to_string()));
-    /// let dur = args.opt::<Duration>("delay");
+    /// let dur = args.opt::<Duration>("delay").unwrap();
     /// assert!(dur.is_none());
     ///
     /// // parsing error
     /// let mut args = Args::from(vec!["text"]);
-    /// let err = args.opt::<f64>("a number").unwrap().unwrap_err();
+    /// let err = args.opt::<f64>("a number").unwrap_err();
     /// assert_eq!(&err.to_string(), "failed to parse `text` as f64");
     /// ```
-    pub fn opt<T>(&mut self, desc: impl AsRef<str>) -> Option<Result<T>>
+    pub fn opt<T>(&mut self, desc: impl AsRef<str>) -> Result<Option<T>>
     where
         T: FromStr,
         Result<T, T::Err>: IntoDiagnostic<T, T::Err>,
     {
         let x = self
-            .peek()?
+            .peek()
             .map_err(|e| self.make_err(desc.as_ref(), e.to_string()));
-        if x.is_ok() {
+        if matches!(x, Ok(Some(_))) {
             self.advance_pos();
         }
-        Some(x)
+        x
     }
 
     /// Test if there is an argument satifying the predicate.
@@ -214,16 +214,18 @@ impl Args {
     ///
     /// assert!(args.finish().is_err()); // position not advanced
     /// ```
-    pub fn peek<T>(&mut self) -> Option<Result<T>>
+    pub fn peek<T>(&mut self) -> Result<Option<T>>
     where
         T: FromStr,
         Result<T, T::Err>: IntoDiagnostic<T, T::Err>,
     {
-        self.peek_str().map(|x| {
-            T::from_str(x)
-                .into_diagnostic()
-                .wrap_err_with(|| format!("failed to parse `{x}` as {}", type_name::<T>()))
-        })
+        self.peek_str()
+            .map(|x| {
+                T::from_str(x)
+                    .into_diagnostic()
+                    .wrap_err_with(|| format!("failed to parse `{x}` as {}", type_name::<T>()))
+            })
+            .transpose()
     }
 
     /// Retrieve the current argument as a string _without advancing the argument position._
@@ -408,8 +410,8 @@ mod tests {
         let mut args = Args::from(Vec::<String>::new());
 
         assert!(args.req::<String>("").is_err());
-        assert!(args.opt::<String>("").is_none());
-        assert!(args.peek::<String>().is_none());
+        assert!(args.opt::<String>("").unwrap().is_none());
+        assert!(args.peek::<String>().unwrap().is_none());
         assert!(args.peek_str().is_none());
         assert!(!args.has(|_| true));
         args.move_front();
