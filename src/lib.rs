@@ -50,6 +50,7 @@
 
 mod args;
 mod file;
+mod cmd;
 
 /// Exposed dependency crates.
 pub mod deps {
