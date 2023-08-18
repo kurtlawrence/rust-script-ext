@@ -13,6 +13,7 @@ license-file = "LICENSE"
 [dependencies]
 csv = "1.2"
 fastrand = "2.0"
+globset = "0.4"
 humantime = "2.1"
 miette = { version = "5.10", features = ["fancy"] }
 regex = "1.9"

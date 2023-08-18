@@ -49,13 +49,14 @@
 #![warn(missing_docs)]
 
 mod args;
-mod file;
 mod cmd;
+mod fs;
 
 /// Exposed dependency crates.
 pub mod deps {
     pub use ::csv;
     pub use ::fastrand;
+    pub use ::globset;
     pub use ::humantime;
     pub use ::miette;
     pub use ::regex;
@@ -69,13 +70,16 @@ pub mod prelude {
 
     pub use super::args::{args, Args};
 
-    /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::file::File).
-    pub type CsvReader = ::csv::Reader<super::file::File>;
+    pub use super::cmd::CommandString;
+    pub use crate::cmd;
 
-    /// CSV [`Writer`](::csv::Writer) backed by a [`File`](super::file::File).
-    pub type CsvWriter = ::csv::Writer<super::file::File>;
+    /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::fs::File).
+    pub type CsvReader = ::csv::Reader<super::fs::File>;
 
-    pub use super::file::File;
+    /// CSV [`Writer`](::csv::Writer) backed by a [`File`](super::fs::File).
+    pub type CsvWriter = ::csv::Writer<super::fs::File>;
+
+    pub use super::fs::{ls, File};
     pub use ::fastrand;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};

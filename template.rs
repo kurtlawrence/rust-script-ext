@@ -1,5 +1,5 @@
-#!/usr/bin/env rust-script
-//! Don't forget chmod +x your script!
+#!/usr/bin/env -S rust-script -c
+//! You might need to chmod +x your script!
 //! ```cargo
 //! [dependencies.rust-script-ext]
 //! git = "https://github.com/kurtlawrence/rust-script-ext"
