@@ -5,7 +5,6 @@
 //! git = "https://github.com/kurtlawrence/rust-script-ext"
 //! rev = "eebd6056481617baba58840bfeb03c23b68b70f7"
 //! ```
-
 use rust_script_ext::prelude::*;
 
 fn main() -> Result<()> {
