@@ -342,6 +342,45 @@ impl Args {
     }
 }
 
+/// Consume the _remaining_ arguments as an iterator over the raw strings.
+///
+/// Note that this starts from the argument position **and** skips any excluded arguments.
+///
+/// # Example
+/// ```rust
+/// # use rust_script_ext::prelude::*;
+/// let mut args = Args::from(vec!["fst.txt", "-c", "24h", "output"]);
+/// args.req::<String>("").unwrap();
+/// args.has(|x| x== "-c");
+///
+/// let rem = args.into_iter().collect::<Vec<_>>();
+/// assert_eq!(&rem, &[
+///    "24h".to_string(),
+///    "output".to_string(),
+/// ]);
+/// ```
+impl IntoIterator for Args {
+    type Item = String;
+    type IntoIter = Box<dyn Iterator<Item = String>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        let Args {
+            incoming,
+            seen,
+            idx,
+            excl,
+        } = self;
+
+        Box::new(
+            seen.into_iter()
+                .enumerate()
+                .skip(idx)
+                .filter_map(move |(i, a)| (!excl[i]).then_some(a))
+                .chain(incoming),
+        )
+    }
+}
+
 impl From<Vec<String>> for Args {
     fn from(value: Vec<String>) -> Self {
         let len = value.len();
@@ -370,15 +409,8 @@ impl From<Vec<&'static str>> for Args {
 mod tests {
     use super::*;
     use crate::prelude::*;
+    use crate::pretty_print_err;
     use insta::assert_snapshot;
-
-    fn pretty_print_err(err: Error) -> String {
-        let mut buf = String::new();
-        GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor())
-            .render_report(&mut buf, err.as_ref())
-            .unwrap();
-        buf
-    }
 
     #[test]
     fn error_printing_req() {

@@ -3,7 +3,7 @@ use crate::prelude::*;
 use std::{
     fmt,
     io::{self, BufWriter, Read, Seek, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
 };
 
 /// Wraps a std [`File`](std::fs::File) which provides extra context for errors and buffered
@@ -197,6 +197,70 @@ impl Seek for File {
     fn stream_position(&mut self) -> io::Result<u64> {
         self.inner.stream_position().map_err(|e| self.wrap_err(e))
     }
+}
+
+/// List out the directory entries under `path` which match the **glob** pattern `matching`.
+///
+/// The return `PathBuf`s will have `path` prefixed.
+///
+/// # Example
+/// ```rust
+/// # use rust_script_ext::prelude::*;
+/// # use std::path::PathBuf;
+/// let ps = ls("src", "*.rs").unwrap();
+/// assert_eq!(ps, vec![
+///     PathBuf::from("src/args.rs"),
+///     PathBuf::from("src/cmd.rs"),
+///     PathBuf::from("src/fs.rs"),
+///     PathBuf::from("src/lib.rs"),
+/// ]);
+/// ```
+pub fn ls<P, M>(path: P, matching: M) -> Result<Vec<PathBuf>>
+where
+    P: AsRef<Path>,
+    M: AsRef<str>,
+{
+    let pat = matching.as_ref();
+    let glob = globset::Glob::new(pat)
+        .into_diagnostic()
+        .wrap_err_with(|| format!("invalid glob pattern: {pat}"))?
+        .compile_matcher();
+
+    let prefix = path.as_ref();
+    let rdr = std::fs::read_dir(prefix)
+        .into_diagnostic()
+        .wrap_err_with(|| {
+            format!(
+                "failed to read directory: {}",
+                prefix
+                    .canonicalize()
+                    .unwrap_or_else(|_| prefix.to_path_buf())
+                    .display()
+            )
+        })?;
+
+    let mut v = Vec::new();
+    for e in rdr {
+        let e = e.into_diagnostic().wrap_err_with(|| {
+            format!(
+                "failed to read directory: {}",
+                prefix
+                    .canonicalize()
+                    .unwrap_or_else(|_| prefix.to_path_buf())
+                    .display()
+            )
+        })?;
+
+        let path = e.path();
+
+        if glob.is_match(path.strip_prefix(prefix).expect("path prefix matches")) {
+            v.push(path);
+        }
+    }
+
+    v.sort_unstable();
+
+    Ok(v)
 }
 
 #[cfg(test)]

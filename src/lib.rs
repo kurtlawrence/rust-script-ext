@@ -25,6 +25,10 @@
 //! }
 //! ```
 //!
+//! # Invoking Commands
+//!
+//! TODO
+//!
 //! # Serialisation
 //! [`Serialize`](::serde::Serialize), [`Deserialize`](::serde::Deserialize),
 //! and [`DeserializeOwned`](::serde::de::DeserializeOwned) are all exposed.
@@ -49,12 +53,14 @@
 #![warn(missing_docs)]
 
 mod args;
-mod file;
+mod cmd;
+mod fs;
 
 /// Exposed dependency crates.
 pub mod deps {
     pub use ::csv;
     pub use ::fastrand;
+    pub use ::globset;
     pub use ::humantime;
     pub use ::miette;
     pub use ::regex;
@@ -68,17 +74,34 @@ pub mod prelude {
 
     pub use super::args::{args, Args};
 
-    /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::file::File).
-    pub type CsvReader = ::csv::Reader<super::file::File>;
+    pub use super::cmd::{
+        CommandExecute, CommandString,
+        Output::{self, *},
+    };
+    pub use crate::cmd;
 
-    /// CSV [`Writer`](::csv::Writer) backed by a [`File`](super::file::File).
-    pub type CsvWriter = ::csv::Writer<super::file::File>;
+    /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::fs::File).
+    pub type CsvReader = ::csv::Reader<super::fs::File>;
 
-    pub use super::file::File;
+    /// CSV [`Writer`](::csv::Writer) backed by a [`File`](super::fs::File).
+    pub type CsvWriter = ::csv::Writer<super::fs::File>;
+
+    pub use super::fs::{ls, File};
     pub use ::fastrand;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
     pub use ::regex::Regex;
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
+    pub use std::io::{Read, Write};
     pub use ::time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
+}
+
+#[cfg(test)]
+fn pretty_print_err(err: miette::Error) -> String {
+    use miette::*;
+    let mut buf = String::new();
+    GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor())
+        .render_report(&mut buf, err.as_ref())
+        .unwrap();
+    buf
 }
