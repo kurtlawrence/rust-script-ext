@@ -409,15 +409,8 @@ impl From<Vec<&'static str>> for Args {
 mod tests {
     use super::*;
     use crate::prelude::*;
+    use crate::pretty_print_err;
     use insta::assert_snapshot;
-
-    fn pretty_print_err(err: Error) -> String {
-        let mut buf = String::new();
-        GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor())
-            .render_report(&mut buf, err.as_ref())
-            .unwrap();
-        buf
-    }
 
     #[test]
     fn error_printing_req() {

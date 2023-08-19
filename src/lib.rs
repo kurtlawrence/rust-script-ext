@@ -25,6 +25,10 @@
 //! }
 //! ```
 //!
+//! # Invoking Commands
+//!
+//! TODO
+//!
 //! # Serialisation
 //! [`Serialize`](::serde::Serialize), [`Deserialize`](::serde::Deserialize),
 //! and [`DeserializeOwned`](::serde::de::DeserializeOwned) are all exposed.
@@ -70,7 +74,10 @@ pub mod prelude {
 
     pub use super::args::{args, Args};
 
-    pub use super::cmd::CommandString;
+    pub use super::cmd::{
+        CommandExecute, CommandString,
+        Output::{self, *},
+    };
     pub use crate::cmd;
 
     /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::fs::File).
@@ -86,4 +93,14 @@ pub mod prelude {
     pub use ::regex::Regex;
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
     pub use ::time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
+}
+
+#[cfg(test)]
+fn pretty_print_err(err: miette::Error) -> String {
+    use miette::*;
+    let mut buf = String::new();
+    GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor())
+        .render_report(&mut buf, err.as_ref())
+        .unwrap();
+    buf
 }
