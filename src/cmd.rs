@@ -33,13 +33,7 @@ use std::process::*;
 /// ```
 #[macro_export]
 macro_rules! cmd {
-    ($cmd:literal $($arg:expr)*) => {
-        cmd!($cmd => $($arg)*)
-    };
-    ($cmd:tt $($arg:expr)*) => {
-        cmd!(stringify!($cmd) => $($arg)*)
-    };
-    ($cmd:expr => $($arg:expr)*) => {{
+    ($cmd:literal : $($args:tt)*) => {
         let cmd: &str = $cmd;
         #[allow(unused_mut)]
         let mut cmd = ::std::process::Command::new(cmd);

@@ -71,6 +71,7 @@ pub mod deps {
 /// Typical imports.
 pub mod prelude {
     pub use super::deps;
+    pub use ::macros::cargs;
 
     pub use super::args::{args, Args};
 

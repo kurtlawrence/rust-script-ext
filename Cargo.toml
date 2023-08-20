@@ -11,6 +11,7 @@ license-file = "LICENSE"
 members = ["macros"]
 
 [dependencies]
+macros = { path = "macros" }
 csv = "1.2"
 fastrand = "2.0"
 globset = "0.4"

@@ -72,3 +72,15 @@ fn expect_comma(tt: Option<TokenTree>) {
         }
     }
 }
+
+#[proc_macro]
+fn cmd(stream: TokenStream) -> TokenStream {
+    let mut stream = stream.into_iter();
+    let stream = stream.by_ref();
+
+    let program = stream.take_while(|t| 
+                    !matches!(TokenTree::Punct(p) if p.as_char() == ':'));
+    let program = TokenStream::from_iter(program).to_string();
+
+
+}
