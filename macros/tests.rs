@@ -32,3 +32,16 @@ fn cargs_expanding() {
     let a = cargs!(hello / path, "a literal",);
     assert_eq!(a, ["hello/path".to_string(), "a literal".to_string()]);
 }
+
+
+#[test]
+fn cmd_smoketest() {
+    let a = format!("{:?}", cmd!(ls));
+    assert_eq!(&a, r#""ls""#);
+
+    let a = format!("{:?}", cmd!(ls: foo, bar));
+    assert_eq!(&a, r#""ls" "foo" "bar""#);
+
+    let a = format!("{:?}", cmd!(ls: foo, bar/zog));
+    assert_eq!(&a, r#""ls" "foo" "bar/zog""#);
+}

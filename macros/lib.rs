@@ -1,4 +1,4 @@
-use proc_macro::{Delimiter, Group, Literal, Punct, TokenStream, TokenTree};
+use proc_macro::{Delimiter, Group, Ident, Literal, Punct, Spacing, Span, TokenStream, TokenTree};
 use std::str::FromStr;
 
 #[proc_macro]
@@ -74,13 +74,29 @@ fn expect_comma(tt: Option<TokenTree>) {
 }
 
 #[proc_macro]
-fn cmd(stream: TokenStream) -> TokenStream {
+pub fn cmd(stream: TokenStream) -> TokenStream {
     let mut stream = stream.into_iter();
     let stream = stream.by_ref();
 
-    let program = stream.take_while(|t| 
-                    !matches!(TokenTree::Punct(p) if p.as_char() == ':'));
+    let program = stream.take_while(|t| !matches!(t, TokenTree::Punct(p) if p.as_char() == ':'));
     let program = TokenStream::from_iter(program).to_string();
+    let program = TokenTree::Literal(Literal::string(&program));
 
+    let args = cargs(TokenStream::from_iter(stream));
 
+    let mut stream =
+        TokenStream::from_str("let mut x = ::std::process::Command::new").expect("valid Rust");
+
+    stream.extend([
+        TokenTree::Group(Group::new(Delimiter::Parenthesis, program.into())),
+        TokenTree::Punct(Punct::new(';', Spacing::Alone)),
+    ]);
+    stream.extend(TokenStream::from_str("x.args"));
+    stream.extend([
+        TokenTree::Group(Group::new(Delimiter::Parenthesis, args)),
+        TokenTree::Punct(Punct::new(';', Spacing::Alone)),
+        TokenTree::Ident(Ident::new("x", Span::call_site())),
+    ]);
+
+    TokenTree::Group(Group::new(Delimiter::Brace, stream)).into()
 }
