@@ -1,6 +1,12 @@
-use ::miette::*;
+use miette::*;
 use std::io::{self, BufRead, BufReader, Write};
 use std::process::*;
+//     (@arg { $arg:expr }) => {{ $arg.to_string() }};
+//     (@arg $($arg:tt)*) => {{ stringify!($($arg)*).to_string() }};
+//     () => {{ let x: [String; 0] = []; x }};
+//     ($($args:tt),* $(,)?) => {{ [$(cargs!(@arg $args),)*] }};
+//     // ($($args:tt,)*) => {{ [$(cargs!(@arg $args),)*] }};
+// }
 
 /// Helper to construct a [`Command`] with arguments.
 ///

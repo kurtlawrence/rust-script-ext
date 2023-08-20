@@ -7,8 +7,8 @@ description = "Opinionated set of extensions for use with rust-script"
 repository = "https://github.com/kurtlawrence/rust-script-ext"
 license-file = "LICENSE"
 
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = ["macros"]
 
 [dependencies]
 csv = "1.2"
