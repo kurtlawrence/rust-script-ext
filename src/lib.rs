@@ -27,7 +27,31 @@
 //!
 //! # Invoking Commands
 //!
-//! TODO
+//! Running commands is done through `std::process::Command`.
+//! There are a few helper traits and macros to assist in:
+//! 
+//! 1. Building a `Command`, and
+//! 2. Executing a command.
+//! 
+//! Building commands can leverage the [`cmd!`](crate::prelude::cmd) macro.
+//! This can be used to succintly build a command with arguments.
+//! 
+//! ```rust
+//! # use rust_script_ext::prelude::*;
+//! let x = 1.0;
+//! let cmd = cmd!(./my-script.sh: foo/bar, --verbose, {x + 2.14});
+//! assert_eq!(&cmd.cmd_str(), "./my-script.sh foo/bar --verbose 3.14");
+//! ```
+//! 
+//! The [`CommandExecute`](crate::prelude::CommandExecute) trait provides some methods which
+//! can execute a command and automatically collect the output, along with providing verbose
+//! error messages if something fails.
+//! 
+//! ```rust,no_run
+//! # use rust_script_ext::prelude::*;
+//! // Verbose means also print stdout/stderr to terminal as execution occurs
+//! cmd!(ls: src).execute_str(Verbose).unwrap();
+//! ```
 //!
 //! # Serialisation
 //! [`Serialize`](::serde::Serialize), [`Deserialize`](::serde::Deserialize),

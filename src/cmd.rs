@@ -244,7 +244,7 @@ impl CommandString for Command {
             .map(|x| x.0)
             .unwrap_or(&x)
             .trim_matches('"');
-        println!("{prg}");
+        // println!("{prg}");
         // let prg = x
         //     .split_once("program:")
         //     .expect("known format")

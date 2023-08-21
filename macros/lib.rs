@@ -4,7 +4,7 @@ use std::str::FromStr;
 #[proc_macro]
 pub fn cargs(stream: TokenStream) -> TokenStream {
     if stream.is_empty() {
-        TokenStream::from_str("{ let x: [String; 0] = []; x }").expect("valid Rust")
+        TokenStream::from_str("{ let __args: [String; 0] = []; __args }").expect("valid Rust")
     } else {
         let mut buf = Vec::new();
 
@@ -106,17 +106,17 @@ pub fn cmd(stream: TokenStream) -> TokenStream {
     let args = cargs(TokenStream::from_iter(stream));
 
     let mut stream =
-        TokenStream::from_str("let mut x = ::std::process::Command::new").expect("valid Rust");
+        TokenStream::from_str("let mut __cmd = ::std::process::Command::new").expect("valid Rust");
 
     stream.extend([
         TokenTree::Group(Group::new(Delimiter::Parenthesis, program.into())),
         semi_colon(),
     ]);
-    stream.extend(TokenStream::from_str("x.args"));
+    stream.extend(TokenStream::from_str("__cmd.args"));
     stream.extend([
         TokenTree::Group(Group::new(Delimiter::Parenthesis, args)),
         semi_colon(),
-        ident("x"),
+        ident("__cmd"),
     ]);
 
     TokenTree::Group(Group::new(Delimiter::Brace, stream)).into()
