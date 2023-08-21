@@ -157,7 +157,7 @@ impl CommandExecute for Command {
 
 /// Methods on [`Command`] which take `self`.
 /// 
-/// This is useful with [`cargs!`](cargs).
+/// This is useful with [`cargs!`](crate::prelude::cargs).
 /// 
 /// # Example
 /// ```rust
