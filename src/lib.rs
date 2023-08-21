@@ -71,15 +71,13 @@ pub mod deps {
 /// Typical imports.
 pub mod prelude {
     pub use super::deps;
-    pub use ::macros::cargs;
 
     pub use super::args::{args, Args};
 
     pub use super::cmd::{
-        CommandExecute, CommandString,
+        CommandExecute, CommandString, CommandBuilder,
         Output::{self, *},
     };
-    pub use crate::cmd;
 
     /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::fs::File).
     pub type CsvReader = ::csv::Reader<super::fs::File>;
@@ -95,6 +93,82 @@ pub mod prelude {
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
     pub use ::time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
     pub use std::io::{Read, Write};
+
+    // publically document cargs! and cmd! here
+
+    /// Construct a `[String]` array from a list of arguments.
+    /// 
+    /// This macro is primarily for use with [`cmd!`](cmd), but can also be independently
+    /// used, a great location is [`Command::args`](std::process::Command::args).
+    /// 
+    /// Arguments are delimited by commas, any text between delimiters is stringified and
+    /// passed through.
+    /// Arguments wrapped in braces (`{ ... }`) are treated as expressions to be evaluated.
+    /// This effectively writes `{ ... }.to_string()`.
+    /// 
+    /// ```plaintext
+    /// arg1, arg2/foo, {expr}
+    /// ```
+    /// 
+    /// # Example
+    /// ```rust
+    /// # use rust_script_ext::prelude::*;
+    /// 
+    /// let x = "hello";
+    /// let c = cargs!(foo, bar/zog, {x}, {1 + 2});
+    /// assert_eq!(c, [
+    ///     "foo".to_string(),
+    ///     "bar/zog".to_string(),
+    ///     "hello".to_string(),
+    ///     "3".to_string()
+    /// ]);
+    /// ```
+    pub use ::macros::cargs;
+
+    /// Helper to construct a [`Command`] with arguments.
+    /// 
+    /// The macro uses the syntax:
+    /// ```plaintext
+    /// cmd: arg1, arg2
+    /// ```
+    /// 
+    /// That is, the command path, optionally followed by a colon (`:`) followed by one or
+    /// more _comma delimited_ arguments.
+    /// 
+    /// Note that `cmd!` defers to [`cargs!`](cargs) to parse the arguments.
+    /// 
+    /// The macro is powerful enough to support raw path identifiers:
+    /// ```rust
+    /// # use rust_script_ext::prelude::*;
+    /// let c = cmd!(ls); // no args
+    /// assert_eq!(&c.cmd_str(), "ls");
+    /// 
+    /// let c = cmd!(ls: foo/bar, zog);
+    /// assert_eq!(&c.cmd_str(), "ls foo/bar zog");
+    /// 
+    /// let c = cmd!(./local-script.sh: foo/bar, zog);
+    /// assert_eq!(&c.cmd_str(), "./local-script.sh foo/bar zog");
+    /// ```
+    /// 
+    /// Literals are supported:
+    /// ```rust
+    /// # use rust_script_ext::prelude::*;
+    /// let c = cmd!(ls: "foo bar", 1.23);
+    /// assert_eq!(&c.cmd_str(), r#"ls "foo bar" 1.23"#);
+    /// ```
+    /// 
+    /// Arguments wrapped in braces (`{ ... }`) are treated as expressions to be evaluated.
+    /// This effectively writes `{ ... }.to_string()`.
+    /// 
+    /// ```rust
+    /// # use rust_script_ext::prelude::*;
+    /// let h = "hello";
+    /// let c = cmd!(ls: {h}, {format!("world")});
+    /// assert_eq!(&c.cmd_str(), "ls hello world");
+    /// ```
+    /// 
+    /// [`Command`]: std::process::Command
+    pub use ::macros::cmd;
 }
 
 #[cfg(test)]
