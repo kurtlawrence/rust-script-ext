@@ -1,57 +1,7 @@
-use ::miette::*;
+use miette::*;
+use std::ffi::OsStr;
 use std::io::{self, BufRead, BufReader, Write};
 use std::process::*;
-
-/// Helper to construct a [`Command`] with arguments.
-///
-/// # Example
-/// ```rust
-/// # use rust_script_ext::prelude::*;
-///
-/// // simple invocation with simple argument
-/// // arguments must be `Display`able
-/// let c = cmd!(ls "foo");
-/// assert_eq!(&c.cmd_str(), "ls foo");
-///
-/// // arguments can be expressions
-/// let c = cmd!(ls format!("file{}.csv", 1));
-/// assert_eq!(&c.cmd_str(), "ls file1.csv");
-///
-/// // arguments with spaces are encased in quotes
-/// let c = cmd!(ls "foo bar");
-/// assert_eq!(&c.cmd_str(), r#"ls "foo bar""#);
-///
-/// // pathed programs are strings
-/// let c = cmd!("./script.sh" "foo" "bar");
-/// assert_eq!(&c.cmd_str(), "./script.sh foo bar");
-/// ```
-#[macro_export]
-macro_rules! cmd {
-    ($cmd:literal $($arg:expr)*) => {
-        cmd!($cmd => $($arg)*)
-    };
-    ($cmd:tt $($arg:expr)*) => {
-        cmd!(stringify!($cmd) => $($arg)*)
-    };
-    ($cmd:expr => $($arg:expr)*) => {{
-        let cmd: &str = $cmd;
-        #[allow(unused_mut)]
-        let mut cmd = ::std::process::Command::new(cmd);
-        $({
-            let a = $arg.to_string();
-            let a = if a.contains(' ') {
-                format!(r#""{a}""#)
-            } else {
-                a
-            };
-            cmd.arg(a);
-        })*
-        cmd
-    }};
-    ($cmd:expr) => {
-        cmd!($cmd =>)
-    };
-}
 
 /// Describes the handling of a command execution for implementors of [`CommandExecute`].
 #[derive(Copy, Clone, Default)]
@@ -107,7 +57,7 @@ pub trait CommandExecute {
 /// If the command exits with an error (ie [`ExitStatus::success`] is `false`), an error is
 /// constructed which includes the captured stderr.
 ///
-/// ```rust
+/// ```rust,no_run
 /// # use rust_script_ext::prelude::*;
 /// let ls = cmd!(ls).execute_str(Verbose).unwrap();
 /// assert_eq!(&ls, "Cargo.lock
@@ -205,6 +155,70 @@ impl CommandExecute for Command {
     }
 }
 
+/// Methods on [`Command`] which take `self`.
+/// 
+/// This is useful with [`cargs!`](crate::prelude::cargs).
+/// 
+/// # Example
+/// ```rust
+/// # use rust_script_ext::prelude::*;
+/// cmd!(ls)
+///     .with_args(cargs!(foo/bar, zog))
+///     .run()
+///     .ok();
+/// ```
+pub trait CommandBuilder {
+    /// Akin to [`Command::arg`].
+    fn with_arg<S: AsRef<OsStr>>(self, arg: S) -> Self;
+    /// Akin to [`Command::args`].
+    fn with_args<I, S>(mut self, args: I) -> Self
+    where
+        Self: Sized,
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        for a in args {
+            self = self.with_arg(a);
+        }
+        self
+    }
+
+    /// Akin to [`Command::env`].
+    fn with_env<K, V>(self, key: K, val: V) -> Self
+    where
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>;
+
+    /// Akin to [`Command::envs`].
+    fn with_envs<I, K, V>(mut self, vars: I) -> Self
+    where
+        Self: Sized,
+        I: IntoIterator<Item = (K, V)>,
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
+        for (k, v) in vars {
+            self = self.with_env(k, v);
+        }
+        self
+    }
+}
+
+impl CommandBuilder for Command {
+    fn with_arg<S: AsRef<OsStr>>(mut self, arg: S) -> Self {
+        self.arg(arg);
+        self
+    }
+
+    fn with_env<K, V>(mut self, key: K, val: V) -> Self
+        where
+            K: AsRef<OsStr>,
+            V: AsRef<OsStr> {
+        self.env(key, val);
+        self
+    }
+}
+
 /// Output [`Command`] as a text string, useful for debugging.
 pub trait CommandString {
     /// Format the command like a bash string.
@@ -222,16 +236,24 @@ pub trait CommandString {
 
 impl CommandString for Command {
     fn cmd_str(&self) -> String {
-        let x = format!("{self:#?}");
+        // note that the debug format is unstable and need careful testing/handling
+        // dbg!(self);
+        let x = format!("{self:?}");
         let prg = x
-            .split_once("program:")
-            .expect("known format")
-            .1
-            .split_once(",")
-            .expect("known format")
-            .0
-            .trim()
+            .split_once(' ')
+            .map(|x| x.0)
+            .unwrap_or(&x)
             .trim_matches('"');
+        // println!("{prg}");
+        // let prg = x
+        //     .split_once("program:")
+        //     .expect("known format")
+        //     .1
+        //     .split_once(",")
+        //     .expect("known format")
+        //     .0
+        //     .trim()
+        //     .trim_matches('"');
 
         self.get_args()
             .fold(prg.to_string(), |s, a| s + " " + &*a.to_string_lossy())
@@ -242,6 +264,7 @@ impl CommandString for Command {
 mod tests {
     use super::Output::*;
     use super::*;
+    use crate::prelude::*;
     use crate::pretty_print_err;
     use insta::assert_snapshot;
 
@@ -250,33 +273,39 @@ mod tests {
         let x = cmd!(ls).cmd_str();
         assert_eq!(&x, "ls");
 
-        let x = cmd!(ls "foo" "bar").cmd_str();
+        let x = cmd!(ls: foo, bar).cmd_str();
         assert_eq!(&x, "ls foo bar");
 
-        let x = cmd!(ls format!("foo") "bar").cmd_str();
+        let x = cmd!(ls: {format!("foo")}, bar).cmd_str();
         assert_eq!(&x, "ls foo bar");
 
-        let x = cmd!(ls "foo bar").cmd_str();
+        let x = cmd!(ls: "foo bar").cmd_str();
         assert_eq!(&x, r#"ls "foo bar""#);
 
-        let x = cmd!("./script.sh" "foo bar").cmd_str();
+        let x = cmd!(./script.sh: "foo bar").cmd_str();
         assert_eq!(&x, r#"./script.sh "foo bar""#);
     }
 
     #[test]
+    #[cfg(unix)]
     fn cmd_execute() {
         let x = cmd!(ls).execute_str(Quiet).unwrap();
+        let mut x = x.trim().split('\n').collect::<Vec<_>>();
+        x.sort();
+
         assert_eq!(
             &x,
-            "Cargo.lock
-Cargo.toml
-LICENSE
-local.rs
-README.md
-src
-target
-template.rs
-"
+            &[
+                "Cargo.lock",
+                "Cargo.toml",
+                "LICENSE",
+                "README.md",
+                "local.rs",
+                "macros",
+                "src",
+                "target",
+                "template.rs",
+            ]
         );
 
         let x = cmd!(ls "foo").execute_str(Verbose).unwrap_err();
