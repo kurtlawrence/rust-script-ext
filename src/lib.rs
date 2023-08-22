@@ -87,6 +87,7 @@ pub mod deps {
     pub use ::globset;
     pub use ::humantime;
     pub use ::miette;
+    pub use ::numfmt;
     pub use ::rayon;
     pub use ::regex;
     pub use ::serde;
@@ -114,6 +115,7 @@ pub mod prelude {
     pub use ::fastrand;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
+    pub use ::numfmt::Formatter as NumFmt;
     pub use ::rayon;
     pub use ::regex::Regex;
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
