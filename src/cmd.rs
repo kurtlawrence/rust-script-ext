@@ -1,6 +1,7 @@
 use miette::*;
 use std::ffi::OsStr;
 use std::io::{self, BufRead, BufReader, Write};
+use std::path::Path;
 use std::process::*;
 
 /// Describes the handling of a command execution for implementors of [`CommandExecute`].
@@ -202,6 +203,9 @@ pub trait CommandBuilder {
         }
         self
     }
+
+    /// Akin to [`Command::current_dir`].
+    fn with_current_dir<P: AsRef<Path>>(self, path: P) -> Self;
 }
 
 impl CommandBuilder for Command {
@@ -215,6 +219,11 @@ impl CommandBuilder for Command {
             K: AsRef<OsStr>,
             V: AsRef<OsStr> {
         self.env(key, val);
+        self
+    }
+
+    fn with_current_dir<P: AsRef<Path>>(mut self, dir: P) -> Self {
+        self.current_dir(dir);
         self
     }
 }
