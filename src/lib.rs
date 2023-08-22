@@ -6,12 +6,14 @@
 //! These patterns include file reading, argument parsing, error handling.
 //!
 //! # Argument Parsing
+//! 
 //! A rudimentary argument parser is provided, simply call [`args`](args::args).
 //!
 //! The parsing is meant to be simple, tailored to script usage. For fully featured CLI apps,
 //! consider importing [`clap`](https://docs.rs/clap/latest/clap/index.html).
 //!
 //! # Error Handling
+//! 
 //! Error handling uses the [`miette`] crate.
 //! A `Result` type alias is exposed, and [`IntoDiagnostic`](prelude::IntoDiagnostic) can be used
 //! to convert errors.
@@ -54,6 +56,7 @@
 //! ```
 //!
 //! # Serialisation
+//! 
 //! [`Serialize`](::serde::Serialize), [`Deserialize`](::serde::Deserialize),
 //! and [`DeserializeOwned`](::serde::de::DeserializeOwned) are all exposed.
 //! Because of some path quirks with re-exported proc-macros, all derived values need to be tagged
@@ -71,9 +74,25 @@
 //! ```
 //!
 //! # Date and Time
+//! 
 //! Date and time is handled by exposing the [`time`](::time) crate.
 //! For _duration_, [`humantime`](::humantime) is used, exposing its `Duration` directly. This is
 //! done for duration parsing similar to what is experienced in unix tools.
+//! 
+//! # Number formatting
+//! 
+//! [`numfmt::Formatter`] is exposed (as [`NumFmt`](prelude::NumFmt)) which can be used
+//! to format numbers in a nice way. The `numfmt` module documentation describes ways to
+//! build a formatter, along with the syntax for parsing a format string.
+//! 
+//! # Progress reporting
+//! 
+//! [`how-u-doin`](::howudoin) can be used to show progress of a longer running script.
+//! 
+//! # Tabular printing
+//! 
+//! Tables can be printed neatly with [`TablePrinter`](prelude::TablePrinter), which is just
+//! exposing [`comfy-table`](::comfy_table).
 #![warn(missing_docs)]
 
 mod args;
@@ -82,11 +101,15 @@ mod fs;
 
 /// Exposed dependency crates.
 pub mod deps {
+    pub use ::comfy_table;
     pub use ::csv;
     pub use ::fastrand;
     pub use ::globset;
+    pub use ::howudoin;
     pub use ::humantime;
     pub use ::miette;
+    pub use ::numfmt;
+    pub use ::rayon;
     pub use ::regex;
     pub use ::serde;
     pub use ::time;
@@ -103,6 +126,8 @@ pub mod prelude {
         Output::{self, *},
     };
 
+    pub use ::comfy_table::{self, Table as TablePrinter};
+
     /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::fs::File).
     pub type CsvReader = ::csv::Reader<super::fs::File>;
 
@@ -111,8 +136,11 @@ pub mod prelude {
 
     pub use super::fs::{ls, File};
     pub use ::fastrand;
+    pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
+    pub use ::numfmt::Formatter as NumFmt;
+    pub use ::rayon;
     pub use ::regex::Regex;
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
     pub use ::time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
