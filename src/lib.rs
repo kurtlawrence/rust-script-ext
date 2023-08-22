@@ -82,6 +82,7 @@ mod fs;
 
 /// Exposed dependency crates.
 pub mod deps {
+    pub use ::comfy_table;
     pub use ::csv;
     pub use ::fastrand;
     pub use ::globset;
@@ -105,6 +106,8 @@ pub mod prelude {
         CommandExecute, CommandString, CommandBuilder,
         Output::{self, *},
     };
+
+    pub use ::comfy_table::{self, Table as TablePrinter};
 
     /// CSV [`Reader`](::csv::Reader) backed by a [`File`](super::fs::File).
     pub type CsvReader = ::csv::Reader<super::fs::File>;

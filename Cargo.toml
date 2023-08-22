@@ -12,6 +12,7 @@ members = ["macros"]
 
 [dependencies]
 macros = { path = "macros" }
+comfy-table = "7.0"
 csv = "1.2"
 fastrand = "2.0"
 globset = "0.4"
