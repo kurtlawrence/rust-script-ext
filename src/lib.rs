@@ -85,6 +85,7 @@ pub mod deps {
     pub use ::csv;
     pub use ::fastrand;
     pub use ::globset;
+    pub use ::howudoin;
     pub use ::humantime;
     pub use ::miette;
     pub use ::numfmt;
@@ -113,6 +114,7 @@ pub mod prelude {
 
     pub use super::fs::{ls, File};
     pub use ::fastrand;
+    pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
     pub use ::numfmt::Formatter as NumFmt;
