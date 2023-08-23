@@ -18,8 +18,11 @@ impl File {
     /// Opens a file in write-only mode.
     ///
     /// This function will create a file if it does not exist, and will truncate it if it does.
+    /// 
+    /// **If the parent directory does not exist, it will be created.**
     pub fn create(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
+        create_p_dir(&path);
         let inner = std::fs::File::create(&path)
             .into_diagnostic()
             .wrap_err_with(|| format!("failed to create or open file '{}'", path.display()))
@@ -31,8 +34,11 @@ impl File {
     /// Opens a file in write-only mode.
     ///
     /// This function will create a file if it does not exist, and will append to it if it does.
+
+    /// **If the parent directory does not exist, it will be created.**
     pub fn append(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
+        create_p_dir(&path);
         let inner = std::fs::File::options()
             .create(true)
             .append(true)
@@ -53,6 +59,16 @@ impl File {
             .map(BufWriter::new)?;
 
         Ok(Self { path, inner })
+    }
+
+    /// The file path.
+    pub fn path(&self) -> &Path {
+        &self.path
+    }
+
+    /// Helper for `std::path::Path::new(path).exists()`.
+    pub fn exists(path: impl AsRef<Path>) -> bool {
+        path.as_ref().exists()
     }
 
     /// Unwrap into `std::fs::File`, flushing any data to be written.
@@ -109,6 +125,14 @@ impl File {
                 inner: err,
             },
         )
+    }
+}
+
+fn create_p_dir(path: &Path) {
+    if let Some(p) = path.parent() {
+        if let Err(e) = std::fs::create_dir_all(p) {
+            eprintln!("failed to create parent directory '{}'", p.display());
+        }
     }
 }
 
