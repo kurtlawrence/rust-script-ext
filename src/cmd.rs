@@ -259,7 +259,7 @@ impl CommandString for Command {
             x.split_once("program:")
                 .expect("known format")
                 .1
-                .split_once(",")
+                .split_once(',')
                 .expect("known format")
                 .0
                 .trim()
