@@ -157,9 +157,9 @@ impl CommandExecute for Command {
 }
 
 /// Methods on [`Command`] which take `self`.
-/// 
+///
 /// This is useful with [`cargs!`](crate::prelude::cargs).
-/// 
+///
 /// # Example
 /// ```rust
 /// # use rust_script_ext::prelude::*;
@@ -215,9 +215,10 @@ impl CommandBuilder for Command {
     }
 
     fn with_env<K, V>(mut self, key: K, val: V) -> Self
-        where
-            K: AsRef<OsStr>,
-            V: AsRef<OsStr> {
+    where
+        K: AsRef<OsStr>,
+        V: AsRef<OsStr>,
+    {
         self.env(key, val);
         self
     }
@@ -246,23 +247,26 @@ pub trait CommandString {
 impl CommandString for Command {
     fn cmd_str(&self) -> String {
         // note that the debug format is unstable and need careful testing/handling
-        // dbg!(self);
-        let x = format!("{self:?}");
-        let prg = x
-            .split_once(' ')
-            .map(|x| x.0)
-            .unwrap_or(&x)
-            .trim_matches('"');
-        // println!("{prg}");
-        // let prg = x
-        //     .split_once("program:")
-        //     .expect("known format")
-        //     .1
-        //     .split_once(",")
-        //     .expect("known format")
-        //     .0
-        //     .trim()
-        //     .trim_matches('"');
+        let x = format!("{self:#?}");
+        // eprintln!("{x}");
+
+        let prg = if cfg!(windows) {
+            x.split_once(' ')
+                .map(|x| x.0)
+                .unwrap_or(&x)
+                .trim_matches('"')
+        } else {
+            x.split_once("program:")
+                .expect("known format")
+                .1
+                .split_once(",")
+                .expect("known format")
+                .0
+                .trim()
+                .trim_matches('"')
+        };
+
+        // eprintln!("{prg}");
 
         self.get_args()
             .fold(prg.to_string(), |s, a| s + " " + &*a.to_string_lossy())
@@ -296,7 +300,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(unix)]
     fn cmd_execute() {
         let x = cmd!(ls).execute_str(Quiet).unwrap();
         let mut x = x.trim().split('\n').collect::<Vec<_>>();
@@ -309,7 +312,6 @@ mod tests {
                 "Cargo.toml",
                 "LICENSE",
                 "README.md",
-                "local.rs",
                 "macros",
                 "src",
                 "target",
@@ -317,10 +319,23 @@ mod tests {
             ]
         );
 
-        let x = cmd!(ls "foo").execute_str(Verbose).unwrap_err();
+        let x = cmd!(ls: "foo").execute_str(Verbose).unwrap_err();
         assert_snapshot!("execute-err", pretty_print_err(x));
 
-        let x = cmd!(watcmd "foo").execute_str(Verbose).unwrap_err();
+        let x = cmd!(watcmd: "foo").execute_str(Verbose).unwrap_err();
         assert_snapshot!("unknown-cmd", pretty_print_err(x));
+    }
+    #[test]
+    fn cmd_naming_with_env() {
+        let x = cmd!(ls).with_env("YO", "zog").cmd_str();
+        assert_eq!(&x, "ls");
+
+        let x = cmd!(ls: foo, bar).with_env("YO", "zog").cmd_str();
+        assert_eq!(&x, "ls foo bar");
+
+        let x = cmd!(ls: foo, bar)
+            .with_envs([("YO", "zog"), ("JO", "bar")])
+            .cmd_str();
+        assert_eq!(&x, "ls foo bar");
     }
 }
