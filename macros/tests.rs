@@ -33,7 +33,6 @@ fn cargs_expanding() {
     assert_eq!(a, ["hello/path".to_string(), "a literal".to_string()]);
 }
 
-
 #[test]
 fn cmd_smoketest() {
     let a = format!("{:?}", cmd!(ls));
