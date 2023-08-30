@@ -18,7 +18,7 @@ impl File {
     /// Opens a file in write-only mode.
     ///
     /// This function will create a file if it does not exist, and will truncate it if it does.
-    /// 
+    ///
     /// **If the parent directory does not exist, it will be created.**
     pub fn create(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
@@ -131,7 +131,7 @@ impl File {
 fn create_p_dir(path: &Path) {
     if let Some(p) = path.parent() {
         if let Err(e) = std::fs::create_dir_all(p) {
-            eprintln!("failed to create parent directory '{}'", p.display());
+            eprintln!("failed to create parent directory '{}': {e}", p.display());
         }
     }
 }
