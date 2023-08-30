@@ -171,7 +171,7 @@ impl Args {
     pub fn finish(&mut self) -> Result<()> {
         let mut x = true;
         let idx = self.idx;
-        while let Some(_) = self.peek_str() {
+        while self.peek_str().is_some() {
             x = false;
             self.advance_pos();
         }
@@ -240,7 +240,7 @@ impl Args {
     /// assert_eq!(&args.req::<String>("filepath").unwrap(), "fst.txt");
     /// assert_eq!(args.peek_str(), Some("24h"));
     /// ```
-    pub fn peek_str<'a>(&'a mut self) -> Option<&'a str> {
+    pub fn peek_str(&mut self) -> Option<&str> {
         if self.idx >= self.seen.len() {
             self.seen.extend(self.incoming.next());
         }
