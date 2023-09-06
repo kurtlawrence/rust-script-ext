@@ -3,7 +3,6 @@ use crate::prelude::*;
 use std::{
     fmt,
     io::{self, BufWriter, Read, Seek, Write},
-    marker::PhantomData,
     path::{Path, PathBuf},
 };
 
@@ -296,35 +295,20 @@ pub trait Format {
         for<'de> T: Deserialize<'de>;
 }
 
-pub struct StructuredReader<'a, F> {
-    inner: &'a mut dyn Read,
-    _as: PhantomData<F>,
+pub trait ReadAs {
+    fn read_as<F, T>(&mut self) -> Result<F::Output<T>>
+    where
+        F: Format,
+        for<'de> T: Deserialize<'de>;
 }
 
-impl<'a, F> StructuredReader<'a, F> {
-    pub fn new(reader: &'a mut dyn Read) -> Self {
-        Self {
-            inner: reader,
-            _as: PhantomData,
-        }
-    }
-
-    pub fn deserialise<T>(&mut self) -> Result<F::Output<T>>
+impl<R: Read> ReadAs for R {
+    fn read_as<F, T>(&mut self) -> Result<F::Output<T>>
     where
         F: Format,
         for<'de> T: Deserialize<'de>,
     {
-        F::deserialise(self.inner)
-    }
-}
-
-pub trait ReadAs {
-    fn read_as<'a, F>(&'a mut self, format: F) -> StructuredReader<'a, F>;
-}
-
-impl<T: Read> ReadAs for T {
-    fn read_as<'a, F>(&'a mut self, _: F) -> StructuredReader<'a, F> {
-        StructuredReader::new(self)
+        F::deserialise(self)
     }
 }
 
@@ -346,6 +330,25 @@ impl Format for CSV {
     }
 }
 
+pub struct JSON;
+impl Format for JSON {
+    type Output<T> = T;
+
+    fn deserialise<T>(rdr: &mut dyn Read) -> Result<Self::Output<T>>
+    where
+        for<'de> T: Deserialize<'de>,
+    {
+        serde_json::from_reader(rdr)
+            .into_diagnostic()
+            .wrap_err_with(|| {
+                format!(
+                    "failed to deserialise {} from JSON",
+                    std::any::type_name::<T>()
+                )
+            })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -363,10 +366,9 @@ mod tests {
     }
 
     #[test]
-    fn structured_read_api_csv() {
+    fn structured_api_csv() {
         let csv = "city,pop\nBrisbane,100000\nSydney,200000";
 
-        let x = csv.as_bytes().read_as(CSV).deserialise::<City>().unwrap();
         let x = csv.as_bytes().read_as::<CSV, City>().unwrap();
 
         assert_eq!(
@@ -381,6 +383,25 @@ mod tests {
                     pop: 200_000,
                 }
             ]
+        );
+    }
+
+    #[test]
+    fn structured_api_json() {
+        let data = serde_json::json!({
+            "city": "Brisbane",
+            "pop": 100_000
+        })
+        .to_string();
+
+        let x = data.as_bytes().read_as::<JSON, City>().unwrap();
+
+        assert_eq!(
+            x,
+            City {
+                city: "Brisbane".to_string(),
+                pop: 100_000,
+            }
         );
     }
 }

@@ -112,6 +112,7 @@ pub mod deps {
     pub use ::rayon;
     pub use ::regex;
     pub use ::serde;
+    pub use ::serde_json;
     pub use ::time;
 }
 
@@ -143,6 +144,7 @@ pub mod prelude {
     pub use ::rayon;
     pub use ::regex::Regex;
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
+    pub use ::serde_json::Value as JsonValue;
     pub use ::time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
     pub use std::io::{Read, Write};
 
