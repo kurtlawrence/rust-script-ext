@@ -3,6 +3,7 @@ use crate::prelude::*;
 use std::{
     fmt,
     io::{self, BufWriter, Read, Seek, Write},
+    marker::PhantomData,
     path::{Path, PathBuf},
 };
 
@@ -287,6 +288,64 @@ where
     Ok(v)
 }
 
+pub trait Format {
+    type Output<T>;
+
+    fn deserialise<T>(rdr: &mut dyn Read) -> Result<Self::Output<T>>
+    where
+        for<'de> T: Deserialize<'de>;
+}
+
+pub struct StructuredReader<'a, F> {
+    inner: &'a mut dyn Read,
+    _as: PhantomData<F>,
+}
+
+impl<'a, F> StructuredReader<'a, F> {
+    pub fn new(reader: &'a mut dyn Read) -> Self {
+        Self {
+            inner: reader,
+            _as: PhantomData,
+        }
+    }
+
+    pub fn deserialise<T>(&mut self) -> Result<F::Output<T>>
+    where
+        F: Format,
+        for<'de> T: Deserialize<'de>,
+    {
+        F::deserialise(self.inner)
+    }
+}
+
+pub trait ReadAs {
+    fn read_as<'a, F>(&'a mut self, format: F) -> StructuredReader<'a, F>;
+}
+
+impl<T: Read> ReadAs for T {
+    fn read_as<'a, F>(&'a mut self, _: F) -> StructuredReader<'a, F> {
+        StructuredReader::new(self)
+    }
+}
+
+pub struct CSV;
+impl Format for CSV {
+    type Output<T> = Vec<T>;
+
+    fn deserialise<T>(rdr: &mut dyn Read) -> Result<Self::Output<T>>
+    where
+        for<'de> T: Deserialize<'de>,
+    {
+        let mut v = Vec::new();
+        for r in ::csv::Reader::from_reader(rdr).into_deserialize() {
+            let r: T = r.into_diagnostic()?;
+            v.push(r);
+        }
+
+        Ok(v)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -295,5 +354,33 @@ mod tests {
     fn file_not_found() {
         let x = File::open("wont-exist.txt").unwrap_err().to_string();
         assert_eq!(&x, "failed to open file 'wont-exist.txt'");
+    }
+
+    #[derive(Deserialize, Debug, PartialEq)]
+    struct City {
+        city: String,
+        pop: u32,
+    }
+
+    #[test]
+    fn structured_read_api_csv() {
+        let csv = "city,pop\nBrisbane,100000\nSydney,200000";
+
+        let x = csv.as_bytes().read_as(CSV).deserialise::<City>().unwrap();
+        let x = csv.as_bytes().read_as::<CSV, City>().unwrap();
+
+        assert_eq!(
+            x,
+            vec![
+                City {
+                    city: "Brisbane".to_string(),
+                    pop: 100_000,
+                },
+                City {
+                    city: "Sydney".to_string(),
+                    pop: 200_000,
+                }
+            ]
+        );
     }
 }
