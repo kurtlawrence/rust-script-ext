@@ -98,6 +98,7 @@
 mod args;
 mod cmd;
 mod fs;
+mod io;
 
 /// Exposed dependency crates.
 pub mod deps {
@@ -139,6 +140,7 @@ pub mod prelude {
     pub use ::fastrand;
     pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
+    pub use super::io::{Format, ReadAs, WriteAs, JSON, CSV};
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
     pub use ::numfmt::Formatter as NumFmt;
     pub use ::rayon;
