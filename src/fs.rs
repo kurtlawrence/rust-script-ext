@@ -236,6 +236,7 @@ impl Seek for File {
 ///     PathBuf::from("src/args.rs"),
 ///     PathBuf::from("src/cmd.rs"),
 ///     PathBuf::from("src/fs.rs"),
+///     PathBuf::from("src/io.rs"),
 ///     PathBuf::from("src/lib.rs"),
 /// ]);
 /// ```

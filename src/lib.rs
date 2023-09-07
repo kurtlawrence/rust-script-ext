@@ -73,6 +73,48 @@
 //! }
 //! ```
 //!
+//! # Structured IO
+//!
+//! A common pattern is to read/write with a particular serialisation format.
+//! Examples include reading a CSV file from disk, or writing JSON to stdout.
+//! An abstraction is provided (structured IO) which produces
+//! [`read_as`](crate::prelude::ReadAs) and [`write_as`](crate::prelude::WriteAs) functions on
+//! typical targets so working with structured data is ergonomic.
+//!
+//! ```rust
+//! # use rust_script_ext::prelude::*;
+//! #[derive(Serialize, Deserialize, Debug, PartialEq)]
+//! struct City {
+//!     city: String,
+//!     pop: u32,
+//! }
+//!
+//! let csv = "city,pop\nBrisbane,100000\nSydney,200000\n";
+//!
+//! // read_as on anything that is Read
+//! let x = csv.as_bytes().read_as::<CSV, City>().unwrap();
+//!
+//! assert_eq!(
+//!     x,
+//!     vec![
+//!         City {
+//!             city: "Brisbane".to_string(),
+//!             pop: 100_000,
+//!         },
+//!         City {
+//!             city: "Sydney".to_string(),
+//!             pop: 200_000,
+//!         }
+//!     ]
+//! );
+//!
+//! let mut buf = Vec::new();
+//!
+//! // write &[T] (T: Serialize) as a CSV into a Writer
+//! x.as_slice().write_as(CSV, &mut buf).unwrap();
+//! assert_eq!(buf, csv.as_bytes());
+//! ```
+//!
 //! # Date and Time
 //!
 //! Date and time is handled by exposing the [`time`](::time) crate.
@@ -98,6 +140,7 @@
 mod args;
 mod cmd;
 mod fs;
+mod io;
 
 /// Exposed dependency crates.
 pub mod deps {
@@ -112,7 +155,9 @@ pub mod deps {
     pub use ::rayon;
     pub use ::regex;
     pub use ::serde;
+    pub use ::serde_json;
     pub use ::time;
+    pub use ::toml;
 }
 
 /// Typical imports.
@@ -135,6 +180,7 @@ pub mod prelude {
     pub type CsvWriter = ::csv::Writer<super::fs::File>;
 
     pub use super::fs::{ls, File};
+    pub use super::io::{Format, ReadAs, WriteAs, CSV, JSON, TOML};
     pub use ::fastrand;
     pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
@@ -143,6 +189,7 @@ pub mod prelude {
     pub use ::rayon;
     pub use ::regex::Regex;
     pub use ::serde::{de::DeserializeOwned, Deserialize, Serialize};
+    pub use ::serde_json::Value as JsonValue;
     pub use ::time::{Date, Month, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset, Weekday};
     pub use std::io::{Read, Write};
 
