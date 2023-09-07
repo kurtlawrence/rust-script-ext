@@ -3,7 +3,7 @@ use std::io::{Read, Write};
 
 /// Defines a _structured_ format which can be used with [`ReadAs`]/[`WriteAs`].
 ///
-/// A format needs to describe (de)serialisatin mechanism, along with the input/output types.
+/// A format needs to describe (de)serialisation mechanism, along with the input/output types.
 /// Note the use of GATs, this can be leveraged to work with containerised types.
 pub trait Format {
     /// The resulting type after _deserialisation_.
@@ -24,10 +24,10 @@ pub trait Format {
         T: Serialize;
 }
 
-/// A trait which gives any [`Read`]er the `read_as` function which can be used to read into with a
+/// A trait which gives any [`Read`]er the `read_as` function which can be used to read with a
 /// specific format.
 ///
-/// Noteable examples of using `read_as` would be to read a file directly as something.
+/// Noteable examples of using `read_as` would be to read a file directly as CSV/json/toml.
 ///
 /// # Example
 /// ```rust
@@ -75,11 +75,11 @@ impl<R: Read> ReadAs for R {
     }
 }
 
-/// A trait which gives can supply `write_as` on a type to serialise it into a specific format and write it into a
+/// A trait which can supply `write_as` on a type to serialise it into a specific format and write it into a
 /// [`Write`]r.
 ///
 /// Its counterpart [`ReadAs`] works on any reader, `WriteAs` works differently, being available on
-/// any _type_ which matches the _formats input_.
+/// any _type_ which matches the _format's input_.
 ///
 /// # Example
 /// ```rust
@@ -92,13 +92,13 @@ impl<R: Read> ReadAs for R {
 ///
 /// let mut buf = Vec::new();
 ///
-/// let x = City {
+/// let sydney = City {
 ///     city: "Sydney".to_string(),
 ///     pop: 200_000
 /// };
 ///
 /// // we serialise as JSON
-/// x.write_as(JSON, &mut buf).unwrap();
+/// sydney.write_as(JSON, &mut buf).unwrap();
 ///
 /// assert_eq!(buf, r#"{
 ///   "city": "Sydney",
@@ -107,7 +107,7 @@ impl<R: Read> ReadAs for R {
 ///
 /// // but we could also easily serialise as TOML
 /// buf.clear();
-/// x.write_as(TOML, &mut buf).unwrap();
+/// sydney.write_as(TOML, &mut buf).unwrap();
 ///
 /// assert_eq!(buf, r#"city = "Sydney"
 /// pop = 200000
@@ -153,7 +153,7 @@ impl Format for CSV {
         Ok(v)
     }
 
-    fn serialise<'a, T>(wtr: &mut dyn Write, val: &'a [T]) -> Result<()>
+    fn serialise<T>(wtr: &mut dyn Write, val: &[T]) -> Result<()>
     where
         T: Serialize,
     {
@@ -169,7 +169,7 @@ impl Format for CSV {
 /// A json [`Format`].
 ///
 /// - The _output_ is `T` (`T: Deserialize`).
-/// - The _input is `T` (`T: Serialize`).
+/// - The _input_ is `T` (`T: Serialize`).
 pub struct JSON;
 impl Format for JSON {
     type Output<T> = T;
@@ -202,7 +202,7 @@ impl Format for JSON {
 /// A toml [`Format`].
 ///
 /// - The _output_ is `T` (`T: Deserialize`).
-/// - The _input is `T` (`T: Serialize`).
+/// - The _input_ is `T` (`T: Serialize`).
 pub struct TOML;
 impl Format for TOML {
     type Output<T> = T;
