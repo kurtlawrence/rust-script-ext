@@ -236,6 +236,7 @@ impl Seek for File {
 ///     PathBuf::from("src/args.rs"),
 ///     PathBuf::from("src/cmd.rs"),
 ///     PathBuf::from("src/fs.rs"),
+///     PathBuf::from("src/io.rs"),
 ///     PathBuf::from("src/lib.rs"),
 /// ]);
 /// ```
@@ -295,11 +296,5 @@ mod tests {
     fn file_not_found() {
         let x = File::open("wont-exist.txt").unwrap_err().to_string();
         assert_eq!(&x, "failed to open file 'wont-exist.txt'");
-    }
-
-    #[derive(Serialize, Deserialize, Debug, PartialEq)]
-    struct City {
-        city: String,
-        pop: u32,
     }
 }
