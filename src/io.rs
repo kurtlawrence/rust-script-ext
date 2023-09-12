@@ -1,5 +1,8 @@
 use crate::prelude::{Deserialize, IntoDiagnostic, Result, Serialize, WrapErr};
-use std::io::{Read, Write};
+use std::{
+    borrow::Borrow,
+    io::{Read, Write},
+};
 
 /// Defines a _structured_ format which can be used with [`ReadAs`]/[`WriteAs`].
 ///
@@ -118,13 +121,14 @@ pub trait WriteAs<F, T> {
     fn write_as(&self, fmt: F, wtr: &mut dyn Write) -> Result<()>;
 }
 
-impl<F, T> WriteAs<F, T> for F::Input<T>
+impl<F, T, A> WriteAs<F, T> for A
 where
     F: Format,
     T: Serialize,
+    A: Borrow<F::Input<T>>,
 {
     fn write_as(&self, _: F, wtr: &mut dyn Write) -> Result<()> {
-        F::serialise(wtr, self)
+        F::serialise(wtr, self.borrow())
     }
 }
 
@@ -132,9 +136,6 @@ where
 ///
 /// - The _output_ is `Vec<T>` (`T: Deserialize`).
 /// - The _input_ is `[T]` (`T: Serialize`).
-///
-/// Note that if using `Vec<T>::write_as` with CSV, would will need to first call [`Vec::as_slice`]
-/// to manually cast it to a slice.
 pub struct CSV;
 impl Format for CSV {
     type Output<T> = Vec<T>;
@@ -273,6 +274,12 @@ mod tests {
 
         let mut buf = Vec::new();
         x.as_slice().write_as(CSV, &mut buf).unwrap();
+
+        assert_eq!(buf, csv.as_bytes());
+
+        // check that vec can work without as_slice
+        let mut buf = Vec::new();
+        x.write_as(CSV, &mut buf).unwrap();
 
         assert_eq!(buf, csv.as_bytes());
     }
