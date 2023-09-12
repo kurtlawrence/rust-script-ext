@@ -141,6 +141,7 @@ mod args;
 mod cmd;
 mod fs;
 mod io;
+mod table;
 
 /// Exposed dependency crates.
 pub mod deps {
