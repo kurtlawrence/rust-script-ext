@@ -113,7 +113,7 @@ impl<T> Table<T> {
         todo!()
     }
 
-    pub fn map<C, F>(self, col: C, mut f: F) -> Result<Self>
+    pub fn map_col<C, F>(self, col: C, mut f: F) -> Result<Self>
     where
         C: Column,
         F: FnMut(Row<T>, &T) -> T,
@@ -195,8 +195,45 @@ impl<T> Table<T> {
         todo!()
     }
 
-    pub fn pick<M>(self, trail: bool, map: M) -> Self {
-        todo!()
+    pub fn pick<M, C>(mut self, trail: bool, map: M) -> Result<Self>
+    where
+        M: IntoIterator<Item = C>,
+        C: Column,
+    {
+        let hdr = build_header(&self.cols);
+
+        let mut cols = Vec::new();
+        let mut inds = Vec::new();
+        for c in map {
+            let i = c
+                .get(&hdr)
+                .ok_or_else(|| miette!("could not find column {c} in table"))?;
+
+            cols.push(self.cols[i].clone());
+            inds.push(i);
+        }
+
+        std::mem::swap(&mut self.cols, &mut cols);
+
+        if trail {
+            for (i, c) in cols.into_iter().enumerate() {
+                if !inds.contains(&i) {
+                    self.cols.push(c);
+                    inds.push(i);
+                }
+            }
+        }
+
+        for r in &mut self.rows {
+            let mut r_ = Vec::with_capacity(inds.len());
+            for i in &inds {
+                r_.push(r[*i]);
+            }
+
+            *r = r_;
+        }
+
+        Ok(self.maybe_consolidate())
     }
 
     pub fn display<S: AsRef<str>>(self, style: S) -> comfy_table::Table {
@@ -204,6 +241,7 @@ impl<T> Table<T> {
     }
 
     pub fn maybe_consolidate(mut self) -> Self {
+        return self;
         let threshold = 5 * self.rows.len() * self.cols.len();
         if self.cells.len() <= threshold {
             return self;
@@ -230,7 +268,12 @@ impl<T> Table<T> {
 impl Table<String> {
     pub fn from_csv<R: Read>(rdr: R) -> Result<Self> {
         let mut csv = csv::Reader::from_reader(rdr);
-        let cols = csv.headers().into_diagnostic()?.into_iter().map(|x| x.to_string()).collect();
+        let cols = csv
+            .headers()
+            .into_diagnostic()?
+            .into_iter()
+            .map(|x| x.to_string())
+            .collect();
 
         let mut rows = Vec::new();
         let mut cells = Vec::new();
@@ -245,11 +288,7 @@ impl Table<String> {
             rows.push(r);
         }
 
-        Ok(Self {
-            cols,
-            rows,
-            cells
-        })
+        Ok(Self { cols, rows, cells })
     }
 }
 
@@ -260,9 +299,17 @@ fn build_header(cols: &[String]) -> Header {
         .collect()
 }
 
-impl<T> WriteAs<CSV, ()> for Table<T> {
-    fn write_as(&self, fmt: CSV, wtr: &mut dyn std::io::Write) -> Result<()> {
-        todo!()
+impl<T: AsRef<[u8]>> WriteAs<CSV, ()> for Table<T> {
+    fn write_as(&self, _: CSV, wtr: &mut dyn std::io::Write) -> Result<()> {
+        let mut csv = csv::Writer::from_writer(wtr);
+        csv.write_record(&self.cols).into_diagnostic()?;
+
+        for row in &self.rows {
+            csv.write_record(row.into_iter().map(|&i| &self.cells[i]))
+                .into_diagnostic()?;
+        }
+
+        Ok(())
     }
 }
 
@@ -296,7 +343,7 @@ pub trait Column: fmt::Display {
     fn get(&self, hdr: &Header) -> Option<usize>;
 }
 
-impl<C: Column> Column for &C {
+impl<C: Column + ?Sized> Column for &C {
     fn get(&self, hdr: &Header) -> Option<usize> {
         <C as Column>::get(&self, hdr)
     }
