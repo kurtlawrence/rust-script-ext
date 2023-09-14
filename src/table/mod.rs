@@ -1,4 +1,6 @@
-use crate::prelude::{miette, Result, WriteAs, CSV};
+use miette::IntoDiagnostic;
+
+use crate::prelude::{miette, Read, Result, WriteAs, CSV};
 use std::{
     collections::{HashMap, HashSet},
     fmt,
@@ -222,6 +224,32 @@ impl<T> Table<T> {
         });
 
         self
+    }
+}
+
+impl Table<String> {
+    pub fn from_csv<R: Read>(rdr: R) -> Result<Self> {
+        let mut csv = csv::Reader::from_reader(rdr);
+        let cols = csv.headers().into_diagnostic()?.into_iter().map(|x| x.to_string()).collect();
+
+        let mut rows = Vec::new();
+        let mut cells = Vec::new();
+
+        for row in csv.records() {
+            let row = row.into_diagnostic()?;
+            let mut r = Vec::with_capacity(row.len());
+            for cell in row.into_iter() {
+                r.push(cells.len());
+                cells.push(cell.to_string());
+            }
+            rows.push(r);
+        }
+
+        Ok(Self {
+            cols,
+            rows,
+            cells
+        })
     }
 }
 
