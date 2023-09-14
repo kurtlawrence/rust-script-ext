@@ -166,11 +166,13 @@ pub mod prelude {
     pub use super::deps;
 
     pub use super::args::{args, Args};
-
     pub use super::cmd::{
         CommandBuilder, CommandExecute, CommandString,
         Output::{self, *},
     };
+    pub use super::fs::{ls, File};
+    pub use super::io::{Format, ReadAs, WriteAs, CSV, JSON, TOML};
+    pub use super::table::Table;
 
     pub use ::comfy_table::{self, Table as TablePrinter};
 
@@ -180,8 +182,6 @@ pub mod prelude {
     /// CSV [`Writer`](::csv::Writer) backed by a [`File`](super::fs::File).
     pub type CsvWriter = ::csv::Writer<super::fs::File>;
 
-    pub use super::fs::{ls, File};
-    pub use super::io::{Format, ReadAs, WriteAs, CSV, JSON, TOML};
     pub use ::fastrand;
     pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};

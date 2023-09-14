@@ -1,10 +1,19 @@
 use crate::prelude::{miette, Result, WriteAs, CSV};
-use std::{collections::HashMap, fmt};
+use std::{
+    collections::{HashMap, HashSet},
+    fmt,
+};
 
 type CellKey = usize;
 type Header<'a> = HashMap<&'a str, usize>;
 
-#[derive(Clone)]
+/// # Memory Management
+///
+/// Operations altering the structure of the table do not immediately drop data when no longer
+/// used.
+/// Instead, once the number of data cells _exceeds_ a threshold, a manual cleanup phase is
+/// triggered, dropping all unused data.
+/// The threshold is currently set to `5*(rows.len())*(cols.len())`, but is subject to change.
 pub struct Table<T> {
     cells: Vec<T>,
     rows: Vec<Vec<CellKey>>,
@@ -36,26 +45,24 @@ impl<T> Table<T> {
         todo!()
     }
 
-    pub fn filter<C, P>(self, col: C, mut pred: P) -> Result<Self> 
+    pub fn filter<C, P>(self, col: C, mut pred: P) -> Result<Self>
     where
-    C: Column,
-    P: FnMut(&T) -> bool
+        C: Column,
+        P: FnMut(&T) -> bool,
     {
         let mut e = None;
         let col = &col;
-        let new = self.filter_rows(|row| {
-            match row.get(col) {
-                Ok(t) => pred(t),
-                Err(err) => {
-                    e = Some(err);
-                    true
-                }
+        let new = self.filter_rows(|row| match row.get(col) {
+            Ok(t) => pred(t),
+            Err(err) => {
+                e = Some(err);
+                true
             }
         });
 
         match e {
             Some(e) => Err(e),
-            None => Ok(new)
+            None => Ok(new),
         }
     }
 
@@ -74,9 +81,9 @@ impl<T> Table<T> {
         Self { cells, rows, cols }.maybe_consolidate()
     }
 
-    pub fn filter_cols<P>(mut self, mut pred: P) -> Self 
+    pub fn filter_cols<P>(mut self, mut pred: P) -> Self
     where
-    P: FnMut(&str) -> bool
+        P: FnMut(&str) -> bool,
     {
         let mut rm = Vec::new();
         let mut i = 0;
@@ -104,12 +111,51 @@ impl<T> Table<T> {
         todo!()
     }
 
-    pub fn map<C, F>(self, col: C, f: F) -> Self {
-        todo!()
+    pub fn map<C, F>(self, col: C, mut f: F) -> Result<Self>
+    where
+        C: Column,
+        F: FnMut(Row<T>, &T) -> T,
+    {
+        let Self {
+            mut cells,
+            rows,
+            cols,
+        } = self;
+        let hdr = build_header(&cols);
+        let i = col
+            .get(&hdr)
+            .ok_or_else(|| miette!("could not find column {col} in table"))?;
+
+        for row in &rows {
+            let t = f(Row::new(&hdr, row, &cells), &cells[i]);
+            cells[i] = t;
+        }
+
+        Ok(Self { cells, rows, cols })
     }
 
-    pub fn append<H, F>(self, header: H, f: F) -> Self {
-        todo!()
+    pub fn append<H, F>(self, header: H, mut f: F) -> Self
+    where
+        H: Into<String>,
+        F: FnMut(Row<T>) -> T,
+    {
+        let Self {
+            mut cells,
+            mut rows,
+            mut cols,
+        } = self;
+        let hdr = build_header(&cols);
+
+        for row in &mut rows {
+            let t = f(Row::new(&hdr, row, &cells));
+            let k = cells.len();
+            cells.push(t);
+            row.push(k);
+        }
+
+        cols.push(header.into());
+
+        Self { cells, rows, cols }
     }
 
     pub fn rename<M>(self, map: M) -> Self {
@@ -136,7 +182,26 @@ impl<T> Table<T> {
         todo!()
     }
 
-    pub fn maybe_consolidate(self) -> Self {
+    pub fn maybe_consolidate(mut self) -> Self {
+        let threshold = 5 * self.rows.len() * self.cols.len();
+        if self.cells.len() <= threshold {
+            return self;
+        }
+
+        let used_idxs = self
+            .rows
+            .iter()
+            .flatten()
+            .copied()
+            .collect::<HashSet<CellKey>>();
+
+        let mut i = 0;
+        self.cells.retain(|_| {
+            let x = used_idxs.contains(&i);
+            i += 1;
+            x
+        });
+
         self
     }
 }
@@ -165,14 +230,13 @@ impl<'a, T> Row<'a, T> {
         Self { hdr, row, cells }
     }
 
-    pub fn get<C: Column>(&self, col: C) -> Result<&T>
-    {
+    pub fn get<C: Column>(&self, col: C) -> Result<&T> {
         self.try_get(&col)
-            .ok_or_else(|| miette!("could not find column {} in table", &col))
+            .ok_or_else(|| miette!("could not find column {col} in table"))
     }
 
     pub fn try_get<C: Column>(&self, col: &C) -> Option<&T> {
-        col.idx(self.hdr)
+        col.get(self.hdr)
             .and_then(|i| self.row.get(i))
             .and_then(|&i| self.cells.get(i))
     }
@@ -181,29 +245,46 @@ impl<'a, T> Row<'a, T> {
 pub struct Col;
 
 trait Column: fmt::Display {
-    fn idx(&self, hdr: &Header) -> Option<usize>;
+    fn find(&self, cols: &[String]) -> Option<usize>;
+    fn get(&self, hdr: &Header) -> Option<usize>;
 }
 
 impl<C: Column> Column for &C {
-    fn idx(&self, hdr: &Header) -> Option<usize> {
-        <C as Column>::idx(&self, hdr)
+    fn get(&self, hdr: &Header) -> Option<usize> {
+        <C as Column>::get(&self, hdr)
+    }
+    fn find(&self, hdr: &[String]) -> Option<usize> {
+        <C as Column>::find(&self, hdr)
     }
 }
 
 impl Column for str {
-    fn idx(&self, hdr: &Header) -> Option<usize> {
+    fn get(&self, hdr: &Header) -> Option<usize> {
         hdr.get(self).copied()
+    }
+
+    fn find(&self, cols: &[String]) -> Option<usize> {
+        cols.iter()
+            .enumerate()
+            .find_map(|(i, s)| s.eq(self).then_some(i))
     }
 }
 
 impl Column for String {
-    fn idx(&self, hdr: &Header) -> Option<usize> {
-        hdr.get(self.as_str()).copied()
+    fn get(&self, hdr: &Header) -> Option<usize> {
+        <str as Column>::get(self.as_str(), hdr)
+    }
+    fn find(&self, hdr: &[String]) -> Option<usize> {
+        <str as Column>::find(self.as_str(), hdr)
     }
 }
 
 impl Column for usize {
-    fn idx(&self, hdr: &Header) -> Option<usize> {
+    fn get(&self, hdr: &Header) -> Option<usize> {
         (*self < hdr.len()).then_some(*self)
+    }
+
+    fn find(&self, cols: &[String]) -> Option<usize> {
+        (*self < cols.len()).then_some(*self)
     }
 }
