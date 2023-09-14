@@ -158,8 +158,27 @@ impl<T> Table<T> {
         Self { cells, rows, cols }
     }
 
-    pub fn rename<M>(self, map: M) -> Self {
-        todo!()
+    pub fn rename<M, C, N>(mut self, map: M) -> Result<Self>
+    where
+        M: IntoIterator<Item = (C, N)>,
+        C: Column,
+        N: Into<String>,
+    {
+        let hdr = build_header(&self.cols);
+        let ren: Vec<_> = map
+            .into_iter()
+            .map(|(c, n)| {
+                c.get(&hdr)
+                    .ok_or_else(|| miette!("could not find column {c} in table"))
+                    .map(|i| (i, n.into()))
+            })
+            .collect::<Result<_>>()?;
+
+        for (i, n) in ren {
+            self.cols[i] = n;
+        }
+
+        Ok(self)
     }
 
     pub fn typify<M>(self, map: M) -> Self {
@@ -244,7 +263,7 @@ impl<'a, T> Row<'a, T> {
 
 pub struct Col;
 
-trait Column: fmt::Display {
+pub trait Column: fmt::Display {
     fn find(&self, cols: &[String]) -> Option<usize>;
     fn get(&self, hdr: &Header) -> Option<usize>;
 }
