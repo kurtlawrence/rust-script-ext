@@ -111,7 +111,7 @@
 //! let mut buf = Vec::new();
 //!
 //! // write &[T] (T: Serialize) as a CSV into a Writer
-//! x.as_slice().write_as(CSV, &mut buf).unwrap();
+//! x.write_as(CSV, &mut buf).unwrap();
 //! assert_eq!(buf, csv.as_bytes());
 //! ```
 //!
