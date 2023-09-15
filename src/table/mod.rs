@@ -9,13 +9,36 @@ use std::{
 type CellKey = usize;
 type Header<'a> = HashMap<&'a str, usize>;
 
-/// # Memory Management
+/// A general table implementation with an ergonomic API for transforming tables.
+///
+/// This structure is meant for use cases where the _contents_ of the table is not strongly
+/// structured, or where a transformation is to be applied before persisting again.
+/// In contrast to [`crate::prelude::CsvReader`], rather than needing an inner `T: Deserliaze`,
+/// each cell will contain `T`. Much of the API is around _restructuring_ the data, so filtering
+/// rows/columns, sorting, rearranging columns, etc.
+///
+/// # Memory Usage
+///
+/// The table stores all cell data `T` in a single vector.
+/// It also stores rows as a vector of `Vec<usize>`.
+/// The _minimum_ memory footprint is thus:
+///
+/// ```plaintext
+/// Rn = number of rows
+/// Cn = number of cols
+/// T  = size_of::<T>
+///
+/// Rn * Cn * T   # cell data
+/// + Rn * Cn * 8 # usize keys into cell data
+/// + Cn * 24     # headers stored as strings
+/// ```
 ///
 /// Operations altering the structure of the table do not immediately drop data when no longer
 /// used.
 /// Instead, once the number of data cells _exceeds_ a threshold, a manual cleanup phase is
 /// triggered, dropping all unused data.
 /// The threshold is currently set to `5*(rows.len())*(cols.len())`, but is subject to change.
+#[derive(Clone)]
 pub struct Table<T> {
     cells: Vec<T>,
     rows: Vec<Vec<CellKey>>,
@@ -23,6 +46,7 @@ pub struct Table<T> {
 }
 
 impl<T> Table<T> {
+    /// Construct a new, empty, table.
     pub fn new() -> Self {
         Self {
             cells: Default::default(),
@@ -47,15 +71,67 @@ impl<T> Table<T> {
         todo!()
     }
 
+    /// Filter rows where a specific column contents matches a predicate.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let x = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap()
+    /// .filter("city", |s| s.starts_with('B')).unwrap()
+    /// .display()
+    /// .to_string();
+    ///
+    /// assert_eq!(&x, "\
+    /// +----------+--------+
+    /// | city     | pop    |
+    /// |----------+--------|
+    /// | Brisbane | 100000 |
+    /// +----------+--------+");
+    /// ```
     pub fn filter<C, P>(self, col: C, mut pred: P) -> Result<Self>
     where
         C: Column,
         P: FnMut(&T) -> bool,
     {
-        let mut e = None;
         let col = &col;
-        let new = self.filter_rows(|row| match row.get(col) {
-            Ok(t) => pred(t),
+        self.filter_rows(|row| row.get(col).map(&mut pred))
+    }
+
+    /// Filter rows based on a predicate.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let x = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap()
+    /// .filter_rows(|row| row.get("city").map(|x| x.eq("Brisbane"))).unwrap()
+    /// .display()
+    /// .to_string();
+    ///
+    /// assert_eq!(&x, "\
+    /// +----------+--------+
+    /// | city     | pop    |
+    /// |----------+--------|
+    /// | Brisbane | 100000 |
+    /// +----------+--------+");
+    /// ```
+    pub fn filter_rows<P>(self, mut pred: P) -> Result<Self>
+    where
+        P: FnMut(Row<T>) -> Result<bool>,
+    {
+        let Self {
+            cells,
+            mut rows,
+            cols,
+        } = self;
+        let hdr = build_header(&cols);
+
+        let mut e = None;
+        rows.retain(|row| match pred(Row::new(&hdr, &row, &cells)) {
+            Ok(x) => x,
             Err(err) => {
                 e = Some(err);
                 true
@@ -64,25 +140,31 @@ impl<T> Table<T> {
 
         match e {
             Some(e) => Err(e),
-            None => Ok(new),
+            None => Ok(Self { cells, rows, cols }.maybe_consolidate()),
         }
     }
 
-    pub fn filter_rows<P>(self, mut pred: P) -> Self
-    where
-        P: FnMut(Row<T>) -> bool,
-    {
-        let Self {
-            cells,
-            mut rows,
-            cols,
-        } = self;
-        let hdr = build_header(&cols);
-        rows.retain(|row| pred(Row::new(&hdr, &row, &cells)));
-
-        Self { cells, rows, cols }.maybe_consolidate()
-    }
-
+    /// Filter columns that match the predicate.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let x = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap()
+    /// .filter_cols(|s| s == "city")
+    /// .display()
+    /// .to_string();
+    ///
+    /// assert_eq!(&x, "\
+    /// +----------+
+    /// | city     |
+    /// |----------|
+    /// | Brisbane |
+    /// |----------|
+    /// | Sydney   |
+    /// +----------+");
+    /// ```
     pub fn filter_cols<P>(mut self, mut pred: P) -> Self
     where
         P: FnMut(&str) -> bool,
@@ -113,6 +195,27 @@ impl<T> Table<T> {
         todo!()
     }
 
+    /// Map the contents of a column.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let x = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap()
+    /// .map_col("city", |row, c| c.to_lowercase()).unwrap()
+    /// .display()
+    /// .to_string();
+
+    /// assert_eq!(&x, "\
+    /// +----------+--------+
+    /// | city     | pop    |
+    /// |----------+--------|
+    /// | brisbane | 100000 |
+    /// |----------+--------|
+    /// | sydney   | 200000 |
+    /// +----------+--------+");
+    /// ```
     pub fn map_col<C, F>(self, col: C, mut f: F) -> Result<Self>
     where
         C: Column,
@@ -129,13 +232,35 @@ impl<T> Table<T> {
             .ok_or_else(|| miette!("could not find column {col} in table"))?;
 
         for row in &rows {
-            let t = f(Row::new(&hdr, row, &cells), &cells[i]);
-            cells[i] = t;
+            let j = row[i];
+            let t = f(Row::new(&hdr, row, &cells), &cells[j]);
+            cells[j] = t;
         }
 
         Ok(Self { cells, rows, cols })
     }
 
+    /// Append a column to the end of the table.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let x = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap()
+    /// .append("country", |row| "Australia".to_string())
+    /// .display()
+    /// .to_string();
+
+    /// assert_eq!(&x, "\
+    /// +----------+--------+-----------+
+    /// | city     | pop    | country   |
+    /// |----------+--------+-----------|
+    /// | Brisbane | 100000 | Australia |
+    /// |----------+--------+-----------|
+    /// | Sydney   | 200000 | Australia |
+    /// +----------+--------+-----------+");
+    /// ```
     pub fn append<H, F>(self, header: H, mut f: F) -> Self
     where
         H: Into<String>,
@@ -160,6 +285,30 @@ impl<T> Table<T> {
         Self { cells, rows, cols }
     }
 
+    /// Rename columns by mapping the name to another.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let x = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap()
+    /// .rename([
+    ///     ("city", "City"),
+    ///     ("pop", "Population")
+    /// ]).unwrap()
+    /// .display()
+    /// .to_string();
+
+    /// assert_eq!(&x, "\
+    /// +----------+------------+
+    /// | City     | Population |
+    /// |----------+------------|
+    /// | Brisbane | 100000     |
+    /// |----------+------------|
+    /// | Sydney   | 200000     |
+    /// +----------+------------+");
+    /// ```
     pub fn rename<M, C, N>(mut self, map: M) -> Result<Self>
     where
         M: IntoIterator<Item = (C, N)>,
@@ -195,6 +344,27 @@ impl<T> Table<T> {
         todo!()
     }
 
+    /// Reorders columns by picking out the specific columns _in order_.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let x = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap()
+    /// .pick(false, ["pop"]).unwrap()
+    /// .display()
+    /// .to_string();
+
+    /// assert_eq!(&x, "\
+    /// +--------+
+    /// | pop    |
+    /// |--------|
+    /// | 100000 |
+    /// |--------|
+    /// | 200000 |
+    /// +--------+");
+    /// ```
     pub fn pick<M, C>(mut self, trail: bool, map: M) -> Result<Self>
     where
         M: IntoIterator<Item = C>,
@@ -236,17 +406,67 @@ impl<T> Table<T> {
         Ok(self.maybe_consolidate())
     }
 
-    pub fn display<S: AsRef<str>>(self, style: S) -> comfy_table::Table {
-        todo!()
-    }
+    /// Convert this table into [`comfy_table::Table`], which can be displayed prettily.
+    ///
+    /// See [`comfy_table::presets`] for a bunch of styles.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let t = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap();
+    ///
+    /// // default display
+    /// let x = t.clone().display().to_string();
+    /// assert_eq!(&x, "\
+    /// +----------+--------+
+    /// | city     | pop    |
+    /// |----------+--------|
+    /// | Brisbane | 100000 |
+    /// |----------+--------|
+    /// | Sydney   | 200000 |
+    /// +----------+--------+");
+    ///
+    /// // change the style
+    /// let x = t.display()
+    ///     .load_preset(deps::comfy_table::presets::ASCII_MARKDOWN)
+    ///     .to_string();
+    /// assert_eq!(&x, "\
+    /// | city     | pop    |
+    /// | Brisbane | 100000 |
+    /// | Sydney   | 200000 |");
+    /// ```
+    pub fn display(self) -> comfy_table::Table
+    where
+        T: fmt::Display,
+    {
+        let Self { cells, rows, cols } = self;
 
-    pub fn maybe_consolidate(mut self) -> Self {
-        return self;
-        let threshold = 5 * self.rows.len() * self.cols.len();
-        if self.cells.len() <= threshold {
-            return self;
+        let mut t = comfy_table::Table::new();
+        t.add_row(cols);
+
+        for r in rows {
+            t.add_row(r.into_iter().map(|i| &cells[i]));
         }
 
+        t
+    }
+
+    fn maybe_consolidate(self) -> Self {
+        let threshold = 5 * self.rows.len() * self.cols.len();
+        if self.cells.len() <= threshold {
+            self
+        } else {
+            self.consolidate()
+        }
+    }
+
+    /// Reduce the backing cells data to only keep data that is currently in the table.
+    ///
+    /// It is generally not necessary to call this.
+    pub fn consolidate(mut self) -> Self {
+        // collect the indices that are in use
         let used_idxs = self
             .rows
             .iter()
@@ -254,18 +474,52 @@ impl<T> Table<T> {
             .copied()
             .collect::<HashSet<CellKey>>();
 
-        let mut i = 0;
+        let mut i = 0; // the cell index
+        let mut kept = 0; // the new index
+        let mut remap = HashMap::new(); // a map of the old index to the new one
         self.cells.retain(|_| {
+            // we retain if the index is in use
             let x = used_idxs.contains(&i);
-            i += 1;
+            if x {
+                remap.insert(i, kept); // i will map to kept
+                kept += 1; // the kept index will be incremented
+            }
+
+            i += 1; // always increment the cell index
+
             x
         });
+
+        // now all the indices in the rows have to be remapped
+        for row in &mut self.rows {
+            for c in row {
+                *c = *remap.get(c).expect("all indices should be remapped");
+            }
+        }
 
         self
     }
 }
 
 impl Table<String> {
+    /// Read a table from CSV data, reading in as strings.
+    ///
+    /// # Example
+    /// ```rust
+    /// use rust_script_ext::prelude::*;
+    /// let t = Table::from_csv(
+    ///     "city,pop\nBrisbane,100000\nSydney,200000\n".as_bytes()
+    /// ).unwrap();
+    /// let x = t.display().to_string();
+    /// assert_eq!(&x, "\
+    /// +----------+--------+
+    /// | city     | pop    |
+    /// |----------+--------|
+    /// | Brisbane | 100000 |
+    /// |----------+--------|
+    /// | Sydney   | 200000 |
+    /// +----------+--------+");
+    /// ```
     pub fn from_csv<R: Read>(rdr: R) -> Result<Self> {
         let mut csv = csv::Reader::from_reader(rdr);
         let cols = csv
