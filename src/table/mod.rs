@@ -17,6 +17,13 @@ type Header<'a> = HashMap<&'a str, usize>;
 /// each cell will contain `T`. Much of the API is around _restructuring_ the data, so filtering
 /// rows/columns, sorting, rearranging columns, etc.
 ///
+/// # Columns
+/// 
+/// Column headers are vanilla strings.
+/// When a method requires `C: Column`, the trait is implemented for strings and `usize`, so that
+/// the string header name, or the column _index_ can be used.
+/// Note that string comparisons are strict.
+///
 /// # Memory Usage
 ///
 /// The table stores all cell data `T` in a single vector.
