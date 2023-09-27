@@ -233,7 +233,7 @@ impl Format for TOML {
         let s = toml::to_string_pretty(val)
             .into_diagnostic()
             .wrap_err_with(|| {
-                format!("failed to serialise {} as JSON", std::any::type_name::<T>())
+                format!("failed to serialise {} as TOML", std::any::type_name::<T>())
             })?;
 
         wtr.write_all(s.as_bytes())
