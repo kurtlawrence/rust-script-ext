@@ -53,6 +53,48 @@ At a high level, the crate provides helpers and data structures which are common
 environment, such as easy error handling, file reading, serialisation/deserialisation, etc.
 If you find something lacking, I encourage you to open a PR!
 
+## Language Server Support
+
+[`rscls`](https://github.com/MiSawa/rscls/) works as a middle-man LSP between rust-analyzer and
+rust-script.
+Below are instructions for getting LSP support using Neovim.
+
+First, ensure you have `rscls` installed.
+```sh
+cargo install rscls
+```
+
+Next, add the following to your configuration. Note this is for Neovim LSP config.
+
+```lua
+-- Rust script LSP support through rscls
+local lsp_configs = require 'lspconfig.configs'
+if not lsp_configs.rscls then
+	lsp_configs.rscls = {
+		default_config = {
+			cmd = { 'rscls' },
+		    filetypes = { 'rustscript' },
+		    root_dir = function(fname)
+		        return require'lspconfig'.util.path.dirname(fname)
+		    end,
+		},
+	}
+end
+require 'lspconfig'.rscls.setup {}
+```
+
+Then, when you are wanting LSP support in a Rust file, set the file type to `rustscript` with a
+command.
+
+```vim
+:set filetype=rustscript
+```
+
+I generally do not bother with LSP support for small scripts, but it comes in handy for more
+complex ones!
+_Note that it will take a little bit to spool up the server and compile the script._
+
+
 ## Versioning
 
 Versioning does not follow semver as would a normal crate.
