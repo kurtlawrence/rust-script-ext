@@ -206,6 +206,16 @@ pub trait CommandBuilder {
 
     /// Akin to [`Command::current_dir`].
     fn with_current_dir<P: AsRef<Path>>(self, path: P) -> Self;
+
+    /// Pipe `stdout` of _this_ into `next` command.
+    fn pipe(self, next: Command) -> Result<Self>
+    where
+        Self: Sized;
+
+    /// Pipe `stderr` of _this_ into `next` command.
+    fn pipe_stderr(self, next: Command) -> Result<Self>
+    where
+        Self: Sized;
 }
 
 impl CommandBuilder for Command {
@@ -226,6 +236,32 @@ impl CommandBuilder for Command {
     fn with_current_dir<P: AsRef<Path>>(mut self, dir: P) -> Self {
         self.current_dir(dir);
         self
+    }
+
+    fn pipe(mut self, mut next: Command) -> Result<Self> {
+        let cmd = self
+            .stdout(Stdio::piped())
+            .spawn()
+            .map_err(|e| miette!("encountered error with command {}: {e}", self.cmd_str()))?;
+
+        let out = cmd.stdout.expect("piped so should exist");
+        let stdin = Stdio::from(out);
+
+        next.stdin(stdin);
+        Ok(next)
+    }
+
+    fn pipe_stderr(mut self, mut next: Command) -> Result<Self> {
+        let cmd = self
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| miette!("encountered error with command {}: {e}", self.cmd_str()))?;
+
+        let out = cmd.stderr.expect("piped so should exist");
+        let stdin = Stdio::from(out);
+
+        next.stdin(stdin);
+        Ok(next)
     }
 }
 
@@ -325,6 +361,7 @@ mod tests {
         let x = cmd!(watcmd: "foo").execute_str(Verbose).unwrap_err();
         assert_snapshot!("unknown-cmd", pretty_print_err(x));
     }
+
     #[test]
     fn cmd_naming_with_env() {
         let x = cmd!(ls).with_env("YO", "zog").cmd_str();
@@ -337,5 +374,40 @@ mod tests {
             .with_envs([("YO", "zog"), ("JO", "bar")])
             .cmd_str();
         assert_eq!(&x, "ls foo bar");
+    }
+
+    #[test]
+    fn cmd_piping() {
+        let x = cmd!(ls)
+            .pipe(cmd!(grep: Cargo.*))
+            .unwrap()
+            .execute_str(Quiet)
+            .unwrap();
+        let mut x = x.trim().split('\n').collect::<Vec<_>>();
+        x.sort();
+
+        assert_eq!(&x, &["Cargo.lock", "Cargo.toml",]);
+
+        let x = cmd!(ls)
+            .pipe(cmd!(grep: Cargo.*))
+            .unwrap()
+            .pipe(cmd!(grep: toml))
+            .unwrap()
+            .execute_str(Quiet)
+            .unwrap();
+        let mut x = x.trim().split('\n').collect::<Vec<_>>();
+        x.sort();
+
+        assert_eq!(&x, &["Cargo.toml",]);
+
+        let x = cmd!(ls: foo)
+            .pipe_stderr(cmd!(grep: foo))
+            .unwrap()
+            .execute_str(Quiet)
+            .unwrap();
+        let mut x = x.trim().split('\n').collect::<Vec<_>>();
+        x.sort();
+
+        assert_eq!(&x, &["ls: cannot access 'foo': No such file or directory",]);
     }
 }
