@@ -1,6 +1,6 @@
 [package]
 name = "rust-script-ext"
-version = "0.1.0"
+version = "1.0.0"
 authors = [ "Kurt Lawrence <kurtlawrence.info>" ]
 edition = "2021"
 description = "Opinionated set of extensions for use with rust-script"
@@ -18,14 +18,14 @@ fastrand = "2.0"
 globset = "0.4"
 howudoin = { version = "0.1", features = ["term-line"] }
 humantime = "2.1"
-miette = { version = "5.10", features = ["fancy"] }
+miette = { version = "7.2", features = ["fancy"] }
 numfmt = { git = "https://github.com/kurtlawrence/numfmt" }
 rayon = "1.7"
 regex = "1.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 time = { version = "0.3", features = ["serde-human-readable"] }
-toml = "0.7"
+toml = "0.8"
 
 [dev-dependencies]
 insta = "1.31.0"
