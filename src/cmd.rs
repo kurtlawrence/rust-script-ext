@@ -184,6 +184,33 @@ pub trait CommandBuilder {
         self
     }
 
+    /// Add the argument if `apply` is `true`.
+    fn maybe_with_arg<S>(self, apply: bool, arg: S) -> Self
+    where
+        Self: Sized,
+        S: AsRef<OsStr>,
+    {
+        if apply {
+            self.with_arg(arg)
+        } else {
+            self
+        }
+    }
+
+    /// Add the arguments if `apply` is `true`.
+    fn maybe_with_args<I, S>(self, apply: bool, args: I) -> Self
+    where
+        Self: Sized,
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        if apply {
+            self.with_args(args)
+        } else {
+            self
+        }
+    }
+
     /// Akin to [`Command::env`].
     fn with_env<K, V>(self, key: K, val: V) -> Self
     where
