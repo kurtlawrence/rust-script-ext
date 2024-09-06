@@ -30,7 +30,7 @@ fn cargs_expanding() {
     );
 
     let a = cargs!(hello / path, "a literal",);
-    assert_eq!(a, ["hello/path".to_string(), "a literal".to_string()]);
+    assert_eq!(a, ["hello/path".to_string(), "\"a literal\"".to_string()]);
 }
 
 #[test]

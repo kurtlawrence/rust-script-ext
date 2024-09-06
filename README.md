@@ -1,6 +1,7 @@
 # rust-script-ext
 Opinionated set of extensions for use with
-[`rust-script`](https://github.com/fornwall/rust-script).
+[`rust-script`](https://github.com/fornwall/rust-script) or
+[`cargo script`](https://github.com/rust-lang/rfcs/pull/3503).
 
 Using `rust-script` to run Rust like a shell script is great!
 This crate provides an opinionated set of extensions tailored towards common patterns in scripts.
@@ -8,10 +9,11 @@ These patterns include file reading, argument parsing, error handling.
 The goal is for script writers to focus on the _business logic_, not implementing parsers, handling
 errors, parsing arguments, etc.
 
+## Using `rust-script`
 ````sh
 $ cargo install rust-script
 ..
-$ cat ./template.rs
+$ cat ./template-rust-script.rs
 #!/usr/bin/env -S rust-script -c
 //! You might need to chmod +x your script!
 //! ```cargo
@@ -19,30 +21,69 @@ $ cat ./template.rs
 //! git = "https://github.com/kurtlawrence/rust-script-ext"
 //! rev = "e914bc0a04e9216ffdfd15c47f4c39b74d98bbeb"
 //! ```
-
+// See <https://kurtlawrence.github.io/rust-script-ext/rust_script_ext/> for documentation
 use rust_script_ext::prelude::*;
 
-fn main() {
+fn main() -> Result<()> {
     // fastrand comes from rust_script_ext::prelude::*
     let n = std::iter::repeat_with(|| fastrand::u32(1..=100))
         .take(5)
         .collect::<Vec<_>>();
 
     println!("Here's 5 random numbers: {n:?}");
+    Ok(())
 }
-$ ./template.rs
+$ ./template-rust-script.rs
 Here's 5 random numbers: [28, 97, 9, 23, 58]
+````
+
+## Using `cargo script`
+````sh
+$ cat ./template-cargo-script.rs
+#!/usr/bin/env -S cargo +nightly -Zscript
+---
+[dependencies.rust-script-ext]
+git = "https://github.com/kurtlawrence/rust-script-ext"
+rev = "e914bc0a04e9216ffdfd15c47f4c39b74d98bbeb"
+---
+// You might need to chmod +x your script!
+// See <https://kurtlawrence.github.io/rust-script-ext/rust_script_ext/> for documentation
+use rust_script_ext::prelude::*;
+
+fn main() -> Result<()> {
+    // fastrand comes from rust_script_ext::prelude::*
+    let n = std::iter::repeat_with(|| fastrand::u32(1..=100))
+        .take(5)
+        .collect::<Vec<_>>();
+
+    println!("Here's 5 random numbers: {n:?}");
+    Ok(())
+}
+$ ./template-cargo-script.rs
+Here's 5 random numbers: [91, 65, 32, 75, 39]
 ````
 
 ## Template Quickstart
 
-`template.rs` contains a simple scaffold for a `rust-script[-ext]`:
+`template-rust-script.rs` contains a simple scaffold for use with `rust-script`:
 
 ```sh
-curl -L https://github.com/kurtlawrence/rust-script-ext/raw/main/template.rs -o my-script.rs
+curl -L https://github.com/kurtlawrence/rust-script-ext/raw/main/template-rust-script.rs -o my-script.rs
 chmod +x my-script.rs
 ./my-script.rs
 ```
+
+`template-cargo-script.rs` contains a simple scaffold for use with `cargo-script`:
+
+```sh
+curl -L https://github.com/kurtlawrence/rust-script-ext/raw/main/template-cargo-script.rs -o my-script.rs
+chmod +x my-script.rs
+./my-script.rs
+```
+
+> `cargo script` does not (currently) set up an isolated environment when running the script, which
+> can cause errors if the script lives _within a Rust crate_.
+> I recommend using `rust-script` instead.
 
 ## What's included?
 
@@ -54,6 +95,8 @@ environment, such as easy error handling, file reading, serialisation/deserialis
 If you find something lacking, I encourage you to open a PR!
 
 ## Language Server Support
+
+> Note: only tested with `rust-script`.
 
 [`rscls`](https://github.com/MiSawa/rscls/) works as a middle-man LSP between rust-analyzer and
 rust-script.

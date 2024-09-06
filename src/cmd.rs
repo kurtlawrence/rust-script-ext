@@ -378,7 +378,8 @@ mod tests {
                 "macros",
                 "src",
                 "target",
-                "template.rs",
+                "template-cargo-script.rs",
+                "template-rust-script.rs",
             ]
         );
 
