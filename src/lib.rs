@@ -150,6 +150,7 @@ pub mod deps {
     pub use ::globset;
     pub use ::howudoin;
     pub use ::humantime;
+    pub use ::itertools;
     pub use ::miette;
     pub use ::numfmt;
     pub use ::rayon;
@@ -184,6 +185,7 @@ pub mod prelude {
     pub use ::fastrand;
     pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
+    pub use ::itertools::Itertools;
     pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
     pub use ::numfmt::Formatter as NumFmt;
     pub use ::rayon;

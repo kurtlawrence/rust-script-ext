@@ -18,6 +18,7 @@ fastrand = "2.0"
 globset = "0.4"
 howudoin = { version = "0.1", features = ["term-line"] }
 humantime = "2.1"
+itertools = "0.13.0"
 miette = { version = "7.2", features = ["fancy"] }
 numfmt = { git = "https://github.com/kurtlawrence/numfmt" }
 rayon = "1.7"
