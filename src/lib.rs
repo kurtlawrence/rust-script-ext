@@ -147,6 +147,7 @@ pub mod deps {
     pub use ::comfy_table;
     pub use ::csv;
     pub use ::fastrand;
+    pub use ::flume;
     pub use ::globset;
     pub use ::howudoin;
     pub use ::humantime;
@@ -183,6 +184,7 @@ pub mod prelude {
     pub use super::fs::{ls, File};
     pub use super::io::{Format, ReadAs, WriteAs, CSV, JSON, TOML};
     pub use ::fastrand;
+    pub use ::flume::{bounded, unbounded, Receiver, Sender};
     pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::itertools::Itertools;

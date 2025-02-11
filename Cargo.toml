@@ -15,6 +15,7 @@ macros = { path = "macros" }
 comfy-table = "7.0"
 csv = "1.2"
 fastrand = "2.0"
+flume = "0.10.14"
 globset = "0.4"
 howudoin = { version = "0.1", features = ["term-line"] }
 humantime = "2.1"
