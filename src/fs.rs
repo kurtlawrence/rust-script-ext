@@ -34,7 +34,6 @@ impl File {
     /// Opens a file in write-only mode.
     ///
     /// This function will create a file if it does not exist, and will append to it if it does.
-
     /// **If the parent directory does not exist, it will be created.**
     pub fn append(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
