@@ -19,7 +19,7 @@ $ cat ./template-rust-script.rs
 //! ```cargo
 //! [dependencies.rust-script-ext]
 //! git = "https://github.com/kurtlawrence/rust-script-ext"
-//! rev = "2a16a21f150e7e36725195d09e4b08ebbe944548"
+//! rev = "fb0c2c888881b1e0821d21a5c9c87a7f7731b622"
 //! ```
 // See <https://kurtlawrence.github.io/rust-script-ext/rust_script_ext/> for documentation
 use rust_script_ext::prelude::*;
@@ -44,7 +44,7 @@ $ cat ./template-cargo-script.rs
 ---
 [dependencies.rust-script-ext]
 git = "https://github.com/kurtlawrence/rust-script-ext"
-rev = "2a16a21f150e7e36725195d09e4b08ebbe944548"
+rev = "fb0c2c888881b1e0821d21a5c9c87a7f7731b622"
 ---
 // You might need to chmod +x your script!
 // See <https://kurtlawrence.github.io/rust-script-ext/rust_script_ext/> for documentation
