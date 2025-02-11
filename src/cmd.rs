@@ -1,6 +1,8 @@
+use flume::{unbounded, Sender};
+use itertools::Itertools;
 use miette::*;
 use std::ffi::OsStr;
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{Read, Write};
 use std::path::Path;
 use std::process::*;
 
@@ -81,48 +83,41 @@ impl CommandExecute for Command {
             .into_diagnostic()
             .wrap_err_with(|| format!("failed to start cmd: {}", self.cmd_str()))?;
 
-        let mut stdout = BufReader::new(child.stdout.take().expect("stdout piped"));
-        let mut stderr = BufReader::new(child.stderr.take().expect("stderr piped"));
+        let stdout = child.stdout.take().expect("stdout piped");
+        let stderr = child.stderr.take().expect("stderr piped");
 
-        let mut so = Vec::new();
-        let mut se = String::new();
-        let mut buf = Vec::new();
-        let mut so_lock = io::stdout();
-        let mut se_lock = io::stderr();
+        let (tx_so, rx_so) = unbounded();
+        let (tx_se, rx_se) = unbounded();
 
-        loop {
-            buf.clear();
-            stdout
-                .read_until(b'\n', &mut buf)
-                .into_diagnostic()
-                .wrap_err("reading stdout failed")
-                .wrap_err_with(|| format!("failed to execute cmd: {}", self.cmd_str()))?;
-            let no_more = buf.is_empty();
+        fn fwd(
+            tx: Sender<Vec<u8>>,
+            mut rdr: impl Read + Send + 'static,
+            print: impl Fn(&[u8]) + Send + 'static,
+        ) {
+            std::thread::spawn(move || {
+                let buf: &mut [u8] = &mut *Box::new([0u8; 1024 * 4]);
+                while let Ok(len) = rdr.read(buf) {
+                    if len == 0 {
+                        break;
+                    }
 
-            if matches!(output, Output::Verbose | Output::Stdout) {
-                so_lock.write_all(&buf).ok(); // silently fail, only a redirect
-            }
-
-            so.extend_from_slice(&buf);
-
-            buf.clear();
-            stderr
-                .read_until(b'\n', &mut buf)
-                .into_diagnostic()
-                .wrap_err("reading stderr failed")
-                .wrap_err_with(|| format!("failed to execute cmd: {}", self.cmd_str()))?;
-            let no_more = no_more && buf.is_empty();
-
-            if matches!(output, Output::Verbose | Output::Stderr) {
-                se_lock.write_all(&buf).ok(); // silently fail, only a redirect
-            }
-
-            se.push_str(&String::from_utf8_lossy(&buf));
-
-            if no_more {
-                break;
-            }
+                    let buf = buf[..len].to_vec();
+                    print(&buf);
+                    let _ = tx.send(buf);
+                }
+            });
         }
+
+        fwd(tx_so, stdout, move |buf| {
+            if matches!(output, Output::Verbose | Output::Stdout) {
+                let _ = std::io::stdout().write_all(buf);
+            }
+        });
+        fwd(tx_se, stderr, move |buf| {
+            if matches!(output, Output::Verbose | Output::Stderr) {
+                let _ = std::io::stderr().write_all(buf);
+            }
+        });
 
         let xs = child
             .wait()
@@ -130,8 +125,10 @@ impl CommandExecute for Command {
             .wrap_err_with(|| format!("failed to execute cmd: {}", self.cmd_str()))?;
 
         if xs.success() {
-            Ok(so)
+            Ok(rx_so.into_iter().flatten().collect_vec())
         } else {
+            let se = rx_se.into_iter().flatten().collect_vec();
+            let se = String::from_utf8_lossy(&se).to_string();
             Err(Error::new(diagnostic! {
                 labels = vec![LabeledSpan::at(0..se.len(), "stderr")],
                 "failed to execute cmd: {}", self.cmd_str(),
