@@ -2,7 +2,7 @@
 ---
 [dependencies.rust-script-ext]
 git = "https://github.com/kurtlawrence/rust-script-ext"
-rev = "fb0c2c888881b1e0821d21a5c9c87a7f7731b622"
+rev = "818017396bf2bbc39ef49263d9669dab453c7b16"
 ---
 // You might need to chmod +x your script!
 // See <https://kurtlawrence.github.io/rust-script-ext/rust_script_ext/> for documentation
