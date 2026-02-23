@@ -24,8 +24,7 @@ impl File {
         let path = path.into();
         create_p_dir(&path);
         let inner = std::fs::File::create(&path)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed to create or open file '{}'", path.display()))
+            .with_context(|| format!("failed to create or open file '{}'", path.display()))
             .map(BufWriter::new)?;
 
         Ok(Self { path, inner })
@@ -42,8 +41,7 @@ impl File {
             .create(true)
             .append(true)
             .open(&path)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed to create or open file '{}'", path.display()))
+            .with_context(|| format!("failed to create or open file '{}'", path.display()))
             .map(BufWriter::new)?;
 
         Ok(Self { path, inner })
@@ -53,8 +51,7 @@ impl File {
     pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
         let path = path.into();
         let inner = std::fs::File::open(&path)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed to open file '{}'", path.display()))
+            .with_context(|| format!("failed to open file '{}'", path.display()))
             .map(BufWriter::new)?;
 
         Ok(Self { path, inner })
@@ -72,7 +69,7 @@ impl File {
 
     /// Unwrap into `std::fs::File`, flushing any data to be written.
     pub fn into_std_file(self) -> Result<std::fs::File> {
-        self.inner.into_inner().into_diagnostic()
+        self.inner.into_inner().map_err(Into::into)
     }
 
     /// Read entire file contents to byte buffer.
@@ -88,8 +85,7 @@ impl File {
             .unwrap_or_default() as usize;
         let mut buf = Vec::with_capacity(len);
         self.read_to_end(&mut buf)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed reading bytes from '{}'", self.path.display()))?;
+            .with_context(|| format!("failed reading bytes from '{}'", self.path.display()))?;
         Ok(buf)
     }
 
@@ -99,7 +95,7 @@ impl File {
     /// Previous reads may have advanced the cursor.
     pub fn read_to_string(&mut self) -> Result<String> {
         self.read_to_vec().and_then(|x| {
-            String::from_utf8(x).into_diagnostic().wrap_err_with(|| {
+            String::from_utf8(x).with_context(|| {
                 format!(
                     "failed to encode bytes from '{}' as UTF8",
                     self.path.display()
@@ -111,8 +107,7 @@ impl File {
     /// Conveniance function to write bytes to the file.
     pub fn write(&mut self, contents: impl AsRef<[u8]>) -> Result<()> {
         self.write_all(contents.as_ref())
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed to write to '{}'", self.path.display()))
+            .with_context(|| format!("failed to write to '{}'", self.path.display()))
     }
 
     fn wrap_err(&self, err: io::Error) -> io::Error {
@@ -246,26 +241,23 @@ where
 {
     let pat = matching.as_ref();
     let glob = globset::Glob::new(pat)
-        .into_diagnostic()
-        .wrap_err_with(|| format!("invalid glob pattern: {pat}"))?
+        .with_context(|| format!("invalid glob pattern: {pat}"))?
         .compile_matcher();
 
     let prefix = path.as_ref();
-    let rdr = std::fs::read_dir(prefix)
-        .into_diagnostic()
-        .wrap_err_with(|| {
-            format!(
-                "failed to read directory: {}",
-                prefix
-                    .canonicalize()
-                    .unwrap_or_else(|_| prefix.to_path_buf())
-                    .display()
-            )
-        })?;
+    let rdr = std::fs::read_dir(prefix).with_context(|| {
+        format!(
+            "failed to read directory: {}",
+            prefix
+                .canonicalize()
+                .unwrap_or_else(|_| prefix.to_path_buf())
+                .display()
+        )
+    })?;
 
     let mut v = Vec::new();
     for e in rdr {
-        let e = e.into_diagnostic().wrap_err_with(|| {
+        let e = e.with_context(|| {
             format!(
                 "failed to read directory: {}",
                 prefix

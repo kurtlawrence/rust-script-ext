@@ -1,4 +1,4 @@
-use crate::prelude::{Deserialize, IntoDiagnostic, Result, Serialize, WrapErr};
+use crate::prelude::{Context, Deserialize, Result, Serialize};
 use std::{
     borrow::Borrow,
     io::{Read, Write},
@@ -147,7 +147,7 @@ impl Format for CSV {
     {
         let mut v = Vec::new();
         for r in ::csv::Reader::from_reader(rdr).into_deserialize() {
-            let r: T = r.into_diagnostic()?;
+            let r: T = r?;
             v.push(r);
         }
 
@@ -160,7 +160,7 @@ impl Format for CSV {
     {
         let mut csv = ::csv::Writer::from_writer(wtr);
         for x in val {
-            csv.serialize(x).into_diagnostic()?;
+            csv.serialize(x)?;
         }
 
         Ok(())
@@ -180,14 +180,12 @@ impl Format for JSON {
     where
         for<'de> T: Deserialize<'de>,
     {
-        serde_json::from_reader(rdr)
-            .into_diagnostic()
-            .wrap_err_with(|| {
-                format!(
-                    "failed to deserialise {} from JSON",
-                    std::any::type_name::<T>()
-                )
-            })
+        serde_json::from_reader(rdr).with_context(|| {
+            format!(
+                "failed to deserialise {} from JSON",
+                std::any::type_name::<T>()
+            )
+        })
     }
 
     fn serialise<T>(wtr: &mut dyn Write, val: &T) -> Result<()>
@@ -195,8 +193,7 @@ impl Format for JSON {
         T: Serialize,
     {
         serde_json::to_writer_pretty(wtr, &val)
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed to serialise {} as JSON", std::any::type_name::<T>()))
+            .with_context(|| format!("failed to serialise {} as JSON", std::any::type_name::<T>()))
     }
 }
 
@@ -215,10 +212,9 @@ impl Format for TOML {
     {
         let mut s = String::new();
         rdr.read_to_string(&mut s)
-            .into_diagnostic()
-            .wrap_err("failed reading TOML data to string")?;
+            .context("failed reading TOML data to string")?;
 
-        toml::from_str(&s).into_diagnostic().wrap_err_with(|| {
+        toml::from_str(&s).with_context(|| {
             format!(
                 "failed to deserialise {} from TOML",
                 std::any::type_name::<T>()
@@ -230,15 +226,12 @@ impl Format for TOML {
     where
         T: Serialize,
     {
-        let s = toml::to_string_pretty(val)
-            .into_diagnostic()
-            .wrap_err_with(|| {
-                format!("failed to serialise {} as TOML", std::any::type_name::<T>())
-            })?;
+        let s = toml::to_string_pretty(val).with_context(|| {
+            format!("failed to serialise {} as TOML", std::any::type_name::<T>())
+        })?;
 
         wtr.write_all(s.as_bytes())
-            .into_diagnostic()
-            .wrap_err("failed to write TOML to writer")
+            .context("failed to write TOML to writer")
     }
 }
 

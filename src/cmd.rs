@@ -1,6 +1,6 @@
+use crate::prelude::{anyhow, Context, Result};
 use flume::{unbounded, Sender};
 use itertools::Itertools;
-use miette::*;
 use std::ffi::OsStr;
 use std::io::{Read, Write};
 use std::path::Path;
@@ -38,9 +38,8 @@ pub trait CommandExecute {
         let cstr = self.cmd_str();
         self.execute(output).and_then(|x| {
             String::from_utf8(x)
-                .into_diagnostic()
-                .wrap_err("failed to encode stdout to UTF8 string")
-                .wrap_err_with(|| format!("cmd str: {cstr}"))
+                .context("failed to encode stdout to UTF8 string")
+                .with_context(|| format!("cmd str: {cstr}"))
         })
     }
 
@@ -80,8 +79,7 @@ impl CommandExecute for Command {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed to start cmd: {}", self.cmd_str()))?;
+            .with_context(|| format!("failed to start cmd: {}", self.cmd_str()))?;
 
         let stdout = child.stdout.take().expect("stdout piped");
         let stderr = child.stderr.take().expect("stderr piped");
@@ -121,19 +119,14 @@ impl CommandExecute for Command {
 
         let xs = child
             .wait()
-            .into_diagnostic()
-            .wrap_err_with(|| format!("failed to execute cmd: {}", self.cmd_str()))?;
+            .with_context(|| format!("failed to execute cmd: {}", self.cmd_str()))?;
 
         if xs.success() {
             Ok(rx_so.into_iter().flatten().collect_vec())
         } else {
             let se = rx_se.into_iter().flatten().collect_vec();
             let se = String::from_utf8_lossy(&se).to_string();
-            Err(Error::new(diagnostic! {
-                labels = vec![LabeledSpan::at(0..se.len(), "stderr")],
-                "failed to execute cmd: {}", self.cmd_str(),
-            })
-            .with_source_code(se))
+            Err(anyhow!(se)).with_context(|| format!("failed to execute cmd: {}", self.cmd_str(),))
         }
     }
 
@@ -143,11 +136,11 @@ impl CommandExecute for Command {
     ///
     /// Use this method when the command being run uses stdio for progress bars/updates.
     fn run(mut self) -> Result<()> {
-        self.status().into_diagnostic().and_then(|x| {
+        self.status().map_err(anyhow::Error::from).and_then(|x| {
             if x.success() {
                 Ok(())
             } else {
-                Err(miette!("cmd exited with code {}: {}", x, self.cmd_str()))
+                Err(anyhow!("cmd exited with code {}: {}", x, self.cmd_str()))
             }
         })
     }
@@ -266,7 +259,7 @@ impl CommandBuilder for Command {
         let cmd = self
             .stdout(Stdio::piped())
             .spawn()
-            .map_err(|e| miette!("encountered error with command {}: {e}", self.cmd_str()))?;
+            .map_err(|e| anyhow!("encountered error with command {}: {e}", self.cmd_str()))?;
 
         let out = cmd.stdout.expect("piped so should exist");
         let stdin = Stdio::from(out);
@@ -279,7 +272,7 @@ impl CommandBuilder for Command {
         let cmd = self
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| miette!("encountered error with command {}: {e}", self.cmd_str()))?;
+            .map_err(|e| anyhow!("encountered error with command {}: {e}", self.cmd_str()))?;
 
         let out = cmd.stderr.expect("piped so should exist");
         let stdin = Stdio::from(out);

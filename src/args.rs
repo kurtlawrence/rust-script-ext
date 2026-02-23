@@ -1,5 +1,5 @@
 //! Functional argument parsing.
-use ::miette::*;
+use crate::prelude::{anyhow, Context, Result};
 use std::{any::type_name, str::FromStr};
 
 /// Get the command line [`Args`].
@@ -43,7 +43,6 @@ pub struct Args {
 impl Args {
     /// Parse current argument, requiring it exist, and advance the argument position.
     ///
-    /// `T` should implement [`FromStr`] with `FromStr::Err` implementing [`IntoDiagnostic`].
     /// `desc` describes the argument in case of failure.
     ///
     /// # Example
@@ -62,7 +61,7 @@ impl Args {
     pub fn req<T>(&mut self, desc: impl AsRef<str>) -> Result<T>
     where
         T: FromStr,
-        Result<T, T::Err>: IntoDiagnostic<T, T::Err>,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
         let desc = desc.as_ref();
         self.opt(desc)?.ok_or_else(|| {
@@ -98,7 +97,7 @@ impl Args {
     pub fn opt<T>(&mut self, desc: impl AsRef<str>) -> Result<Option<T>>
     where
         T: FromStr,
-        Result<T, T::Err>: IntoDiagnostic<T, T::Err>,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
         let x = self
             .peek()
@@ -190,13 +189,7 @@ impl Args {
                     (o, s + a + " ")
                 });
 
-        Err(Error::new(diagnostic! {
-            severity = Severity::Error,
-            code = "Unconsumed arguments",
-            labels = vec![LabeledSpan::underline(offset..src.len())],
-            "unconsumed arguments provided"
-        })
-        .with_source_code(src))
+        Err(anyhow!(src[offset..src.len()].to_string())).context("unconsumed arguments provided")
     }
 
     /// Parse the current argument _without advancing the argument position._
@@ -217,13 +210,12 @@ impl Args {
     pub fn peek<T>(&mut self) -> Result<Option<T>>
     where
         T: FromStr,
-        Result<T, T::Err>: IntoDiagnostic<T, T::Err>,
+        T::Err: std::error::Error + Send + Sync + 'static,
     {
         self.peek_str()
             .map(|x| {
                 T::from_str(x)
-                    .into_diagnostic()
-                    .wrap_err_with(|| format!("failed to parse `{x}` as {}", type_name::<T>()))
+                    .with_context(|| format!("failed to parse `{x}` as {}", type_name::<T>()))
             })
             .transpose()
     }
@@ -311,7 +303,7 @@ impl Args {
         }
     }
 
-    fn make_err(&self, desc: &str, msg: impl AsRef<str>) -> Error {
+    fn make_err(&self, desc: &str, msg: impl AsRef<str>) -> anyhow::Error {
         let (offset, src) =
             self.seen
                 .iter()
@@ -332,13 +324,10 @@ impl Args {
             offset
         };
 
-        Error::new(diagnostic! {
-            severity = Severity::Error,
-            code = format!("Error with argument <{desc}>"),
-            labels = vec![LabeledSpan::underline(offset)],
-            "{}", msg.as_ref()
-        })
-        .with_source_code(src)
+        <Result<()>>::Err(anyhow!(src[offset].to_string()))
+            .with_context(|| format!("error with argument <{desc}>"))
+            .with_context(|| msg.as_ref().to_string())
+            .expect_err("is an error")
     }
 }
 

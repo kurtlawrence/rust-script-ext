@@ -1,13 +1,6 @@
 ---
 source: src/args.rs
-assertion_line: 242
+assertion_line: 408
 expression: "pretty_print_err(args.req::<Duration>(\"delay\").unwrap_err())"
 ---
-Error with argument <delay>
-
-  × failed to parse `fst.txt` as humantime::wrapper::Duration
-   ╭────
- 1 │ fst.txt 
-   · ───────
-   ╰────
-
+failed to parse `fst.txt` as humantime::wrapper::Duration: error with argument <delay>: fst.txt

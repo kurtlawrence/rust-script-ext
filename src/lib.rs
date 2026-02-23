@@ -14,16 +14,14 @@
 //!
 //! # Error Handling
 //!
-//! Error handling uses the [`miette`] crate.
-//! A `Result` type alias is exposed, and [`IntoDiagnostic`](prelude::IntoDiagnostic) can be used
-//! to convert errors.
+//! Error handling uses the [`anyhow`] crate.
+//! A `Result` type alias is exposed, [`Context`](anyhow::Context) can be added.
 //!
 //! ```rust
 //! # use rust_script_ext::prelude::*;
 //! fn foo() -> Result<String> {
 //!    std::fs::read_to_string("foo.txt")
-//!        .into_diagnostic()
-//!        .wrap_err("failed to open 'foo.txt'")
+//!        .context("failed to open 'foo.txt'")
 //! }
 //! ```
 //!
@@ -144,6 +142,7 @@ mod io;
 
 /// Exposed dependency crates.
 pub mod deps {
+    pub use ::anyhow;
     pub use ::comfy_table;
     pub use ::csv;
     pub use ::fastrand;
@@ -152,7 +151,6 @@ pub mod deps {
     pub use ::howudoin;
     pub use ::humantime;
     pub use ::itertools;
-    pub use ::miette;
     pub use ::numfmt;
     pub use ::rayon;
     pub use ::regex;
@@ -183,12 +181,12 @@ pub mod prelude {
 
     pub use super::fs::{ls, File};
     pub use super::io::{Format, ReadAs, WriteAs, CSV, JSON, TOML};
+    pub use ::anyhow::{anyhow, bail, ensure, Context, Error, Result};
     pub use ::fastrand;
     pub use ::flume::{bounded, unbounded, Receiver, Sender};
     pub use ::howudoin;
     pub use ::humantime::{parse_duration, Duration, Timestamp};
     pub use ::itertools::Itertools;
-    pub use ::miette::{bail, ensure, miette, Error, IntoDiagnostic, Result, WrapErr};
     pub use ::numfmt::Formatter as NumFmt;
     pub use ::rayon;
     pub use ::regex::Regex;
@@ -275,11 +273,6 @@ pub mod prelude {
 }
 
 #[cfg(test)]
-fn pretty_print_err(err: miette::Error) -> String {
-    use miette::*;
-    let mut buf = String::new();
-    GraphicalReportHandler::new_themed(GraphicalTheme::unicode_nocolor())
-        .render_report(&mut buf, err.as_ref())
-        .unwrap();
-    buf
+fn pretty_print_err(err: anyhow::Error) -> String {
+    format!("{err:#}")
 }
