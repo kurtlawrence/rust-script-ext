@@ -342,7 +342,7 @@ mod tests {
         let x = cmd!(ls: foo, bar).cmd_str();
         assert_eq!(&x, "ls foo bar");
 
-        let x = cmd!(ls: {format!("foo")}, bar).cmd_str();
+        let x = cmd!(ls: {"foo"}, bar).cmd_str();
         assert_eq!(&x, "ls foo bar");
 
         let x = cmd!(ls: "foo bar").cmd_str();
